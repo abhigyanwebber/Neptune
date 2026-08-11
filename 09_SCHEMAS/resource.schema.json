@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resource",
+  "type": "object",
+  "required": [
+    "resource_id",
+    "status",
+    "resource_type"
+  ],
+  "properties": {
+    "resource_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "resource_type": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "discovered",
+        "eligible",
+        "claimed",
+        "active",
+        "dormant",
+        "expiring",
+        "expired",
+        "replaced"
+      ]
+    },
+    "criticality": {
+      "enum": [
+        "R0",
+        "R1",
+        "R2",
+        "R3"
+      ]
+    },
+    "claimed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "activated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "remaining_balance": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "replacement": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "exit_plan": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verification_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PermissionDecision",
+  "type": "object",
+  "required": [
+    "decision",
+    "reason"
+  ],
+  "properties": {
+    "decision": {
+      "enum": [
+        "allow",
+        "ask",
+        "deny"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "policy_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capability": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "resource": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "arguments_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

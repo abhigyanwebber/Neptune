@@ -1,0 +1,9 @@
+workers:
+  - worker_id: A
+    account_role: core-control-plane
+    status: not-started
+    current_task: null
+  - worker_id: B
+    account_role: infrastructure-integration
+    status: not-started
+    current_task: null

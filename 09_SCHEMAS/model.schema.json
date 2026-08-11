@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModelRecord",
+  "type": "object",
+  "required": [
+    "model_id",
+    "provider",
+    "capabilities",
+    "verified_at"
+  ],
+  "properties": {
+    "model_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "context_limit": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "tool_calling": {
+      "type": "boolean"
+    },
+    "structured_output": {
+      "type": "boolean"
+    },
+    "cost_class": {
+      "type": "string"
+    },
+    "quota": {
+      "type": "object"
+    },
+    "health": {
+      "type": "object"
+    },
+    "availability": {
+      "type": "string"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "preferred_roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
