@@ -1,2 +1,30 @@
-decisions: []
-# Material implementation decisions are recorded here.
+decisions:
+  - id: ADR-A-001
+    made_by: claude-a
+    title: "Accept reference stack for Stage 0/1: Python + SQLAlchemy 2.0 + PostgreSQL"
+    rationale: >
+      06_REGISTRIES/REFERENCE_STACK_REGISTRY.md candidates are adequate,
+      free-tier-friendly, and match what Claude B will likely also assume.
+      No genuine technical reason found to deviate; re-evaluating would be
+      optimization without justification (per director's Technology
+      Question guidance).
+    status: recorded
+  - id: ADR-A-002
+    made_by: claude-a
+    title: "Repository pattern: one commit per call, sessionmaker-injected"
+    rationale: >
+      SESSION_CONTRACT.md explicitly defers "exact session persistence;
+      concurrency model." Chose the simplest correct unit-of-work (one
+      transaction per repository call) as a Stage 1 baseline rather than
+      speculatively building multi-statement transaction/unit-of-work
+      machinery no consumer has asked for yet.
+    status: recorded
+  - id: ADR-A-003
+    made_by: claude-a
+    title: "Local Postgres via docker-compose on host port 5433"
+    rationale: >
+      Keeps the $0 baseline (Bible primary objective) and avoids clashing
+      with any pre-existing local Postgres on the default 5432 port.
+      NEPTUNE_DATABASE_URL env var overrides for any other
+      Postgres-compatible target without code changes.
+    status: recorded

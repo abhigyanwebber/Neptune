@@ -1,2 +1,12 @@
-dependencies: []
-# Populate with implementation task IDs and their dependency relationships.
+dependencies:
+  - task_id: NEPTUNE-A-STAGE0-1-CORE
+    depends_on: []
+    note: "No dependency on Claude B's work; Core lane starts independently per 14_DEVELOPMENT_ORCHESTRATION/03_WORK_ALLOCATION.md."
+  - task_id: NEPTUNE-B-MODEL-GATEWAY
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: >
+      Model Gateway / tool execution (Claude B, later stage) will read the
+      Task/Session/Event/Checkpoint contracts in src/core/contracts and
+      write Turns/Events through those repository interfaces. This entry
+      documents the integration point, not an active B task yet.

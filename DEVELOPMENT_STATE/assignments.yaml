@@ -1,2 +1,20 @@
-assignments: []
-# Director populates this file before implementation begins.
+assignments:
+  - task_id: NEPTUNE-A-STAGE0-1-CORE
+    worker_id: A
+    stage: "0-1"
+    title: "Core domain foundation: Task/Agent/Session/Turn/Event/Checkpoint + Postgres persistence + recovery test"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/domain (Task, Agent, Session, Turn, Event, Checkpoint)
+      - src/core/contracts (repository Protocols)
+      - src/infrastructure/persistence (SQLAlchemy ORM models + repositories)
+      - src/config (database URL settings)
+      - docker-compose.yml (local Postgres for dev/test)
+      - tests/unit, tests/contract, tests/integration
+    out_of_scope:
+      - Model Gateway
+      - provider integrations
+      - tool system / sandboxing
+      - MCP integrations
+      - multi-agent execution
