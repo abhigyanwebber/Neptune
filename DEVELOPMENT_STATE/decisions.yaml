@@ -40,3 +40,29 @@ decisions:
       imported/run without litellm installed. No live call was made;
       GROQ_API_KEY is read only at invoke() time.
     reversible: true
+
+
+  - id: B-DEC-005
+    task_id: B-002-integration-candidate-evaluation
+    decision: >
+      Recommended stack: provider primary=groq, fallback_chain=
+      [openrouter, cerebras, gemini, mistral]; tool_layer=pattern
+      reuse only (codex_cli, cline, openhands -- no candidate scored
+      "directly reusable"); sandbox primary=docker_local,
+      fallback=e2b; mcp primary=official protocol via fastmcp.
+      Full justification in 06_REGISTRIES/integration_registry.yaml
+      recommended_stack block.
+    reversible: true
+
+  - id: B-DEC-006
+    task_id: B-002-integration-candidate-evaluation
+    decision: >
+      Flagged two upstream status changes materially affecting the
+      Bible's original candidate assumptions: Roo Code archived
+      May 2026 (no longer a live dependency target -- pattern only),
+      and Daytona's self-host story downgraded after its open-source
+      repo reportedly stopped accepting contributions ~June 2026.
+      Gemini CLI is also being retired June 18 2026. None of these
+      required a contract change; recorded as research findings.
+    reversible: false
+    note: "Factual finding, not a design choice -- recorded for traceability."

@@ -19,3 +19,26 @@ assignments:
       - PERMISSION_CONTRACT
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
+
+
+  - task_id: B-002-integration-candidate-evaluation
+    worker_id: B
+    title: "Integration Candidate Evaluation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Evaluation only, no implementation. Verified catalog of provider,
+      tool-layer, sandbox, and MCP integration candidates. Produced
+      04_RESEARCH/{provider,tool,sandbox,mcp}_candidates.md and
+      06_REGISTRIES/integration_registry.yaml with a recommended_stack.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    adapters_written: false

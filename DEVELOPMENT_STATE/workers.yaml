@@ -6,4 +6,7 @@ workers:
   - worker_id: B
     account_role: infrastructure-integration
     status: active
-    current_task: B-001-model-gateway-foundation
+    current_task: B-002-integration-candidate-evaluation
+    completed_tasks:
+      - B-001-model-gateway-foundation
+      - B-002-integration-candidate-evaluation
