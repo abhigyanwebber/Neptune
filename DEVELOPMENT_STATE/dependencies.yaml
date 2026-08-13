@@ -1,2 +1,12 @@
-dependencies: []
-# Populate with implementation task IDs and their dependency relationships.
+dependencies:
+  - task_id: B-001-model-gateway-foundation
+    depends_on: []
+    note: >
+      Deliberately buildable against frozen contracts alone; no
+      dependency on Claude A's Stage 0/1 repositories.
+    blocks:
+      - "future: live single-provider vertical slice (needs
+         GROQ_API_KEY provisioning + director authorization)"
+      - "future: A's end-to-end task/session/turn -> Gateway wiring
+         (needs A's task/session identifiers to be real, not just
+         strings, once Stage 1 lands)"

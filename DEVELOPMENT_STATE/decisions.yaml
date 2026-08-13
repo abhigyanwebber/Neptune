@@ -1,2 +1,42 @@
-decisions: []
-# Material implementation decisions are recorded here.
+decisions:
+  - id: B-DEC-001
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Selected Groq (llama-3.3-70b-versatile) as the first vertical-
+      slice provider candidate. Free tier, no card required,
+      OpenAI-compatible surface, tool calling supported. Not locked in
+      architecturally -- registered as ordinary data in
+      config/registries/*.yaml and accessed only through
+      ProviderAdapter.
+    alternatives_considered: "Gemini free lane, Cerebras, Mistral, OpenRouter :free (per R01 snapshot in MODEL_REGISTRY.md)"
+    reversible: true
+
+  - id: B-DEC-002
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Implemented ModelGatewayService.infer() to raise
+      ModelGatewayError(ModelError) on failure rather than returning a
+      ModelResult | ModelError union, per REFERENCE_INTERFACES.md's
+      note that exact syntax may vary. Keeps the happy-path type
+      unambiguous for callers.
+    reversible: true
+
+  - id: B-DEC-003
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Router scoring left intentionally simple (capability match +
+      availability + cost-class ceiling + sticky/preferred provider,
+      then quota_remaining) since ROUTER_CONTRACT defers "exact
+      scoring formula, weighting, health algorithm" to implementation.
+      Lives in infrastructure/routing/, not core, so it can be
+      replaced without touching the frozen contract.
+    reversible: true
+
+  - id: B-DEC-004
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      GroqAdapter imports litellm lazily inside invoke(), not at
+      module scope, so the module (and the full test suite) can be
+      imported/run without litellm installed. No live call was made;
+      GROQ_API_KEY is read only at invoke() time.
+    reversible: true

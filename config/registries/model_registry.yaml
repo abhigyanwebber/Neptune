@@ -1,0 +1,37 @@
+# Model registry data.
+#
+# Per 06_REGISTRIES/MODEL_REGISTRY.md: entries here are snapshots and
+# must be revalidated before production use. This entry was verified
+# 2026-08-13 against Groq's published docs for this task's provider
+# candidate selection (ADR-033). It is data, not an architectural
+# dependency -- the model_id below is the only place this name
+# appears outside this file and provider_registry.yaml.
+
+models:
+  - id: groq-llama-3.3-70b-versatile
+    provider: groq
+    model: llama-3.3-70b-versatile
+    capabilities:
+      - fast_general
+      - tool_use
+      - coding
+      - summarization
+      - classification
+    context_limit: 131072
+    tool_calling: true
+    structured_output: true
+    cost_class: free
+    quota: "~30 requests/min, ~6000 tokens/min, ~1000 requests/day (free tier, subject to change)"
+    health: unknown
+    availability: available
+    verified_at: "2026-08-13"
+    fallbacks: []
+    preferred_roles:
+      - coder
+      - extraction_worker
+    notes: >
+      Reference candidate for the first single-provider vertical slice
+      (ADR-033). No card required for the free tier. Not an
+      architectural dependency -- fully replaceable behind
+      ProviderAdapter. Rate limits are provider-published and were not
+      load-tested as part of this task.

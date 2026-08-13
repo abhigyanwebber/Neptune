@@ -5,5 +5,5 @@ workers:
     current_task: null
   - worker_id: B
     account_role: infrastructure-integration
-    status: not-started
-    current_task: null
+    status: active
+    current_task: B-001-model-gateway-foundation

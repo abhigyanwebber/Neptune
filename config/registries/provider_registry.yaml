@@ -1,0 +1,31 @@
+# Provider registry data. See MODEL_REGISTRY.md for the paired model
+# entry. Reliability category per PROVIDER_REGISTRY.md: STRUCTURAL
+# candidate pending further validation under load -- not yet promoted
+# past "candidate for the first vertical slice."
+
+providers:
+  - id: groq
+    name: Groq
+    provider_type: hosted_inference_api
+    regions: ["us"]
+    endpoints:
+      - "https://api.groq.com/openai/v1"
+    capabilities:
+      - fast_general
+      - tool_use
+      - coding
+      - summarization
+      - classification
+    pricing_snapshot: "Free tier, no card required, as of 2026-08-13"
+    quota_snapshot: "Per-model RPM/TPM/RPD limits, free tier (see model entry)"
+    health: unknown
+    verification_date: "2026-08-13"
+    terms_url: "https://groq.com/terms-of-use/"
+    status: candidate
+    failure_history: ""
+    fallback_providers: []
+    cache_characteristics: "unknown -- not evaluated in this task"
+    notes: >
+      OpenAI-compatible API surface; fits behind LiteLLM per
+      ADR-032. Selected as the practical first candidate per
+      ADR-033, not as a permanent dependency (ADR-001).

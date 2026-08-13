@@ -1,2 +1,21 @@
-assignments: []
-# Director populates this file before implementation begins.
+assignments:
+  - task_id: B-001-model-gateway-foundation
+    worker_id: B
+    title: "Model Gateway Foundation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Normalized Gateway request/response structures, provider-adapter
+      interface, initial model/provider registry structure,
+      Gateway/provider boundary enforcement, reference-provider
+      adapter scaffold, contract-compliance tests. No live provider
+      call authorized in this task.
+    contracts_implemented:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+    contracts_not_modified:
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
