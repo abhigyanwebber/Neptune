@@ -100,6 +100,52 @@ class EventModel(Base):
     )
 
 
+class CapabilityModel(Base):
+    __tablename__ = "capabilities"
+
+    capability_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class ProviderModel(Base):
+    __tablename__ = "providers"
+
+    provider_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    provider_type: Mapped[str] = mapped_column(String, nullable=False)
+    capabilities: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    depends_on: Mapped[list] = mapped_column(JSON, default=list)
+    verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class ResourceModel(Base):
+    __tablename__ = "resources"
+
+    resource_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    resource_type: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    criticality: Mapped[str] = mapped_column(String, nullable=False)
+    depends_on: Mapped[list] = mapped_column(JSON, default=list)
+    verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class ToolDefinitionModel(Base):
+    __tablename__ = "tool_definitions"
+
+    tool_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    capability: Mapped[str] = mapped_column(String, nullable=False)
+    risk_class: Mapped[str | None] = mapped_column(String, nullable=True)
+    depends_on: Mapped[list] = mapped_column(JSON, default=list)
+    verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
 class CheckpointModel(Base):
     __tablename__ = "checkpoints"
 

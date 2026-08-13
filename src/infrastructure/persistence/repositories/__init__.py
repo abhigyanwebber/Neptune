@@ -1,3 +1,9 @@
+from .registry_repositories import (
+    SqlAlchemyCapabilityRepository,
+    SqlAlchemyProviderRepository,
+    SqlAlchemyResourceRepository,
+    SqlAlchemyToolDefinitionRepository,
+)
 from .sqlalchemy_repositories import (
     SqlAlchemyAgentRepository,
     SqlAlchemyCheckpointRepository,
@@ -14,4 +20,8 @@ __all__ = [
     "SqlAlchemyTurnRepository",
     "SqlAlchemyEventRepository",
     "SqlAlchemyCheckpointRepository",
+    "SqlAlchemyCapabilityRepository",
+    "SqlAlchemyProviderRepository",
+    "SqlAlchemyResourceRepository",
+    "SqlAlchemyToolDefinitionRepository",
 ]

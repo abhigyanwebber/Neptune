@@ -33,3 +33,26 @@ dependencies:
       Claude B's real Tool/Permission/sandbox layer must satisfy
       core.contracts.tools.ToolPort (.execute(tool_call: dict) -> dict).
       Same swap-in relationship as the Model Gateway above.
+
+  - task_id: NEPTUNE-A-003-REGISTRY
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: "Registry follows the same repository-contract + SQLAlchemy pattern as Stage 0/1; no new persistence approach introduced."
+
+  - task_id: NEPTUNE-B-PROVIDER-REGISTRATION
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      Claude B registers real provider records (groq/openrouter/gemini/openai/
+      cerebras/mistral) through ProviderRegistry.register() as providers come
+      online, and real tool records through ToolRegistry.register(). Core
+      only owns the catalog; B owns populating it with real, verified data.
+
+  - task_id: NEPTUNE-ROUTER-CAPABILITY-LOOKUP
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      The future Router (ROUTER_CONTRACT.md: "Routing is capability-oriented")
+      resolves candidate providers via ProviderRegistry.find_by_capability()
+      and candidate tools via ToolRegistry.find_by_capability(). This entry
+      documents the integration point; no Router task is active yet.

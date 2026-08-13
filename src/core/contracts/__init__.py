@@ -1,4 +1,10 @@
 from .gateway import ModelGatewayPort
+from .registry import (
+    CapabilityRepository,
+    ProviderRepository,
+    ResourceRepository,
+    ToolDefinitionRepository,
+)
 from .repositories import (
     AgentRepository,
     CheckpointRepository,
@@ -18,4 +24,8 @@ __all__ = [
     "CheckpointRepository",
     "ModelGatewayPort",
     "ToolPort",
+    "CapabilityRepository",
+    "ProviderRepository",
+    "ResourceRepository",
+    "ToolDefinitionRepository",
 ]

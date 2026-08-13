@@ -38,3 +38,21 @@ assignments:
       - full context/repository indexing
       - multi-agent orchestration
       - Alembic migrations (explicitly deferred by director)
+
+  - task_id: NEPTUNE-A-003-REGISTRY
+    worker_id: A
+    stage: "registry"
+    title: "Resource Registry and Capability Registry system: Capability/Provider/Resource/Tool catalogs + dependency resolution"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/contracts/registry.py (CapabilityRepository, ProviderRepository, ResourceRepository, ToolDefinitionRepository Protocols)
+      - src/core/registry/ (capability_registry.py, provider_registry.py, resource_registry.py, tool_registry.py, dependency_resolution.py)
+      - src/infrastructure/persistence (registry ORM models + SQLAlchemy repositories)
+      - tests/unit/registry, tests/integration/registry
+    out_of_scope:
+      - tool execution
+      - provider execution
+      - MCP execution
+      - sandbox
+      - Router implementation (registries only expose the lookups a future Router will use)

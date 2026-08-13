@@ -73,3 +73,49 @@ decisions:
       active behavior yet.
     status: recorded
 
+  - id: ADR-A-007
+    made_by: claude-a
+    title: "Fixed-vocabulary registries with a strict/non-strict register() switch"
+    rationale: >
+      The four registries validate capability_id/provider_id/resource_id/
+      tool_id against the exact vocabularies given in task A-003 by
+      default (strict=True). A non-strict mode is also exposed so the
+      registries can still store forward-compatible entries (new
+      providers, new capabilities) as data without a code change once B or
+      the director expands the vocabulary -- consistent with
+      06_REGISTRIES/PROVIDER_REGISTRY.md's framing of registry entries as
+      "operational data," not frozen architecture.
+    status: recorded
+  - id: ADR-A-008
+    made_by: claude-a
+    title: "Registry domain + service classes live together in core/registry/*.py per-file, not split into core/domain + infrastructure like Stage 0/1"
+    rationale: >
+      Task A-003 explicitly specified the file layout (core/registry/
+      capability_registry.py etc.), one file per registry combining the
+      dataclass and the thin service class. To keep core/ provider-
+      independent per the existing contract test
+      (test_core_has_no_infrastructure_or_provider_imports), each
+      core/registry/*.py file imports its matching Protocol from
+      core/contracts/registry.py only under `TYPE_CHECKING`, avoiding a
+      runtime circular import between contracts/registry.py (which imports
+      the dataclasses) and registry/*.py (which would otherwise import the
+      Protocols). SQLAlchemy implementations still live entirely in
+      infrastructure/persistence, matching Stage 0/1's dependency
+      direction.
+    status: recorded
+  - id: ADR-A-009
+    made_by: claude-a
+    title: "Dependency resolution is a single cross-registry pure function, not per-registry logic"
+    rationale: >
+      A dependency (e.g. a tool depending on a resource) can point across
+      registry boundaries, so resolution can't live inside just one
+      registry class without that class reaching into the others.
+      core/registry/dependency_resolution.py implements a generic
+      topological sort over an id -> depends_on map the caller assembles
+      from whichever registries are relevant, with cycle detection
+      (DependencyCycleError) and an UnresolvedDependencyError for
+      references to entries that don't exist. This keeps each registry
+      class simple and keeps the resolution algorithm independent of which
+      registry an id came from.
+    status: recorded
+

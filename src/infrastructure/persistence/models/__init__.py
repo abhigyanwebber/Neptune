@@ -1,10 +1,14 @@
 from .base import Base
 from .orm import (
     AgentModel,
+    CapabilityModel,
     CheckpointModel,
     EventModel,
+    ProviderModel,
+    ResourceModel,
     SessionModel,
     TaskModel,
+    ToolDefinitionModel,
     TurnModel,
 )
 
@@ -16,4 +20,8 @@ __all__ = [
     "TurnModel",
     "EventModel",
     "CheckpointModel",
+    "CapabilityModel",
+    "ProviderModel",
+    "ResourceModel",
+    "ToolDefinitionModel",
 ]
