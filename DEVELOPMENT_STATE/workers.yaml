@@ -2,7 +2,7 @@ workers:
   - worker_id: A
     account_role: core-control-plane
     status: active
-    current_task: NEPTUNE-A-STAGE0-1-CORE
+    current_task: NEPTUNE-A-RUNTIME-STAGE2-CORE
   - worker_id: B
     account_role: infrastructure-integration
     status: not-started

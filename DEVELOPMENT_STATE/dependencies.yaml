@@ -10,3 +10,26 @@ dependencies:
       Task/Session/Event/Checkpoint contracts in src/core/contracts and
       write Turns/Events through those repository interfaces. This entry
       documents the integration point, not an active B task yet.
+
+  - task_id: NEPTUNE-A-RUNTIME-STAGE2-CORE
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: "Runtime engine consumes the Stage 0/1 repository contracts directly; no new persistence work required."
+
+  - task_id: NEPTUNE-B-MODEL-GATEWAY-IMPL
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      Claude B's real Model Gateway must satisfy core.contracts.gateway.ModelGatewayPort
+      (.send(request: dict) -> dict). AgentRuntime currently runs against
+      core.runtime.fakes.FakeModelGateway for tests/dev; swapping in B's real
+      implementation requires no Core code changes, only a different object
+      passed into AgentRuntime's constructor.
+
+  - task_id: NEPTUNE-B-TOOL-LAYER-IMPL
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      Claude B's real Tool/Permission/sandbox layer must satisfy
+      core.contracts.tools.ToolPort (.execute(tool_call: dict) -> dict).
+      Same swap-in relationship as the Model Gateway above.

@@ -28,3 +28,48 @@ decisions:
       NEPTUNE_DATABASE_URL env var overrides for any other
       Postgres-compatible target without code changes.
     status: recorded
+
+  - id: ADR-A-004
+    made_by: claude-a
+    title: "No generalized Agent/Session/Turn transition-rule tables for the runtime stage"
+    rationale: >
+      Director explicitly warned against silently inventing a large frozen
+      lifecycle-rule library after Stage 0/1 added Task's transition table.
+      Agent/Session/Turn status changes are enforced procedurally inside
+      AgentRuntime (src/core/runtime/engine.py) at exactly the points the
+      Task -> Agent Run -> Session -> Turn -> Checkpoint lifecycle needs
+      them, not as a separate generalized validated-transition class like
+      Task's. Task keeps its table because task.schema.json's status enum
+      made a formal contract explicit; Agent/Session/Turn have no
+      equivalent Bible-specified enum, so a formal table would be
+      implementation speculation, not contract-following.
+    status: recorded
+  - id: ADR-A-005
+    made_by: claude-a
+    title: "Model Gateway / Tool boundary as Python Protocols returning opaque dicts"
+    rationale: >
+      core.contracts.gateway.ModelGatewayPort and core.contracts.tools.ToolPort
+      take/return plain dicts rather than typed request/response models.
+      Core does not know or need to know the shape of a real provider's
+      request/response -- that normalization is Claude B's Model Gateway
+      responsibility (ADR-003, ADR-032). Turn.model_request/model_response
+      already persist as opaque JSON (Stage 0/1), so this keeps the
+      runtime and persistence layers consistent instead of introducing a
+      second, narrower schema Core would have to keep in sync.
+    status: recorded
+  - id: ADR-A-006
+    made_by: claude-a
+    title: "Tool-call loop does not auto-repeat within a single run_turn() call"
+    rationale: >
+      After executing the tool_calls in a model response, the engine does
+      not automatically send the resulting observations back to the model
+      for a follow-up response within the same turn -- that would be
+      express a loop *policy* (when to keep looping vs. hand back to the
+      caller), which belongs to the future agent-loop driver built on top
+      of this runtime, not to Core's control-plane primitives. The
+      director's brief asks for orchestration machinery, not the actual
+      loop-continuation policy. _MAX_TOOL_ROUNDS_PER_TURN in engine.py is
+      a safety ceiling for future policies that do choose to loop, not an
+      active behavior yet.
+    status: recorded
+

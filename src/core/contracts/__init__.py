@@ -1,3 +1,4 @@
+from .gateway import ModelGatewayPort
 from .repositories import (
     AgentRepository,
     CheckpointRepository,
@@ -6,6 +7,7 @@ from .repositories import (
     TaskRepository,
     TurnRepository,
 )
+from .tools import ToolPort
 
 __all__ = [
     "TaskRepository",
@@ -14,4 +16,6 @@ __all__ = [
     "TurnRepository",
     "EventRepository",
     "CheckpointRepository",
+    "ModelGatewayPort",
+    "ToolPort",
 ]

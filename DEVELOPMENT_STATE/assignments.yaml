@@ -18,3 +18,23 @@ assignments:
       - tool system / sandboxing
       - MCP integrations
       - multi-agent execution
+
+  - task_id: NEPTUNE-A-RUNTIME-STAGE2-CORE
+    worker_id: A
+    stage: "2"
+    title: "Core Agent Runtime / Execution Control: Task -> Agent Run -> Session -> Context -> Model Request -> Tool Request -> Observation -> Event -> Checkpoint -> Continue/Complete/Recover"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/contracts/gateway.py (ModelGatewayPort)
+      - src/core/contracts/tools.py (ToolPort)
+      - src/core/runtime/ (AgentRuntime engine, context assembly, fakes, errors)
+      - 05_DECISIONS/ADR-037 (open-source harness integration evaluation)
+      - tests/unit/runtime, tests/integration/runtime
+    out_of_scope:
+      - Model Gateway implementation
+      - provider adapters / routing
+      - tool executors / sandbox / MCP
+      - full context/repository indexing
+      - multi-agent orchestration
+      - Alembic migrations (explicitly deferred by director)
