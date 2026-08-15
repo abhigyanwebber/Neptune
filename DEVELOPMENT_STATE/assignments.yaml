@@ -47,7 +47,7 @@ assignments:
   - task_id: B-003-first-real-provider-integration
     worker_id: B
     title: "First Real Provider Integration"
-    status: blocked_on_credential
+    status: complete
     authorized_by: director
     scope: >
       Converted GroqAdapter scaffold to a live implementation using
@@ -69,15 +69,20 @@ assignments:
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
-    blocker: >
-      Stop condition (a Neptune Runtime request successfully reaching
-      a real Groq model and returning a response through the Gateway)
-      requires a live GROQ_API_KEY, which is not available to this
-      worker and is not set anywhere on the workspace machine
-      (checked process env and persistent User/Machine scopes).
-      Everything that does not require the live call is complete and
-      tested (22 passed, 3 skipped-pending-credential).
-    unblock_action: >
-      Set GROQ_API_KEY in the environment (see .env.example) and run
-      scripts/run_live_groq_smoke_test.py or
-      python -m pytest tests/test_groq_live_e2e.py -v
+    blocker: null
+    resolution: >
+      Live GROQ_API_KEY provided by human operator on 2026-08-15 for
+      one-time in-memory use only (not persisted, not committed, not
+      written to any file). Live smoke test and live e2e test suite
+      (3 tests) both passed against a real Groq model. A real bug was
+      found and fixed during validation: ModelRegistry.candidates_for
+      was passing the registry's internal entry key
+      (e.g. "groq-llama-3.3-70b-versatile") as the provider-facing
+      model_id instead of the actual Groq model name
+      ("llama-3.3-70b-versatile"), causing a 404 from Groq. Fixed in
+      src/neptune/infrastructure/models/registry.py (one-line change,
+      RoutingCandidate.model_id now sources from ModelRecord.model,
+      not ModelRecord.id). Corresponding test assertions updated in
+      tests/test_registry.py. Full suite: 25 passed (22 always-run +
+      3 live, live tests skip automatically when no key is present).
+    unblock_action: null

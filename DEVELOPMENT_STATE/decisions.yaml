@@ -108,3 +108,34 @@ decisions:
       matches the existing registry discipline (snapshots require
       revalidation, not silent overwrite) established in B-001/B-002.
     reversible: true
+
+
+  - id: B-DEC-010
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Live validation completed and B-003 closed. Human operator
+      supplied GROQ_API_KEY for one-time in-memory use in a single
+      terminal session ($env:GROQ_API_KEY set per-process, never
+      via setx/System Properties, never written to .env or any repo
+      file). Confirmed via literal-string repository search
+      (0 matches) that the key does not appear anywhere in the
+      working tree. The key was not retained after validation; this
+      worker holds no copy of it.
+    reversible: false
+    note: "Factual record of a validation event and its handling, not a design choice."
+
+  - id: B-DEC-011
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Fixed a real bug surfaced only by the live call: registry.py's
+      candidates_for() populated RoutingCandidate.model_id from
+      ModelRecord.id (the registry's internal key, e.g.
+      "groq-llama-3.3-70b-versatile") instead of ModelRecord.model
+      (the provider's actual model name, "llama-3.3-70b-versatile").
+      Every mocked/unit test passed regardless, because none of them
+      exercised the real registry against a real provider -- this is
+      exactly the class of bug B-003 exists to catch. One-line fix,
+      contracts unchanged, RoutingCandidate/ModelRecord schemas
+      unchanged. Updated the two assertions in test_registry.py that
+      depended on the old (incorrect) value.
+    reversible: true

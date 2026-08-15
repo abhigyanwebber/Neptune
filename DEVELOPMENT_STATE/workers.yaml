@@ -5,8 +5,9 @@ workers:
     current_task: null
   - worker_id: B
     account_role: infrastructure-integration
-    status: blocked
-    current_task: B-003-first-real-provider-integration
+    status: idle
+    current_task: null
     completed_tasks:
       - B-001-model-gateway-foundation
       - B-002-integration-candidate-evaluation
+      - B-003-first-real-provider-integration

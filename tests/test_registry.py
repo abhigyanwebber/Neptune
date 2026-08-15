@@ -30,6 +30,9 @@ def test_candidates_for_produces_routing_candidates(model_registry: ModelRegistr
     assert len(candidates) == 1
     assert isinstance(candidates[0], RoutingCandidate)
     assert candidates[0].provider_id == "groq"
+    # model_id must be the provider-facing model name, not the
+    # registry's internal entry key (B-003 live-validation fix).
+    assert candidates[0].model_id == "llama-3.3-70b-versatile"
 
 
 def test_router_can_select_from_real_registry_data(
@@ -45,4 +48,4 @@ def test_router_can_select_from_real_registry_data(
         budget=BudgetEnvelope(),
         routing_constraints=RoutingConstraints(),
     )
-    assert decision.selected.model_id == "groq-llama-3.3-70b-versatile"
+    assert decision.selected.model_id == "llama-3.3-70b-versatile"

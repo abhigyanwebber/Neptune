@@ -82,7 +82,14 @@ class ModelRegistry:
         del capabilities  # selection happens in the Router, per ROUTER_CONTRACT
         return [
             RoutingCandidate(
-                model_id=m.id,
+                # NB: model_id here must be the provider-facing model
+                # name (m.model, e.g. "llama-3.3-70b-versatile"), not
+                # the registry's internal entry key (m.id, e.g.
+                # "groq-llama-3.3-70b-versatile") -- the former is
+                # what actually gets sent to the provider's API.
+                # Found via B-003 live validation: the registry key
+                # was being passed to Groq and rejected with 404.
+                model_id=m.model,
                 provider_id=m.provider,
                 capabilities=m.capabilities,
                 cost_class=m.cost_class,
