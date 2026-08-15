@@ -11,3 +11,4 @@ workers:
       - B-001-model-gateway-foundation
       - B-002-integration-candidate-evaluation
       - B-003-first-real-provider-integration
+      - B-004-tool-execution-boundary

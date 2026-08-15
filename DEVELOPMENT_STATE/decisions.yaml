@@ -139,3 +139,44 @@ decisions:
       unchanged. Updated the two assertions in test_registry.py that
       depended on the old (incorrect) value.
     reversible: true
+
+
+  - id: B-DEC-012
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      Implemented core/contracts/tool_execution.py to give TOOL_CONTRACT
+      a concrete shape, same pattern as B-001's treatment of
+      MODEL_CONTRACT/PROVIDER_CONTRACT/ROUTER_CONTRACT: this is
+      implementing the frozen contract, not modifying it. ToolCall/
+      ToolResult reuse ToolDefinition from model_gateway.py rather than
+      duplicating it, per "use contracts already defined by Core."
+    reversible: true
+
+  - id: B-DEC-013
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      ToolExecutor.execute() never raises for tool-level failures
+      (missing tool, invalid input, timeout, oversized output, or even
+      an unrelated unhandled exception inside a tool) -- all are
+      normalized into ToolResult(outcome=...). This directly implements
+      TOOL_CONTRACT's "return structured success/error information"
+      responsibility and invariant 1 (tool existence/lookup failure is
+      data, not a control-flow event the Runtime must catch specially).
+      Timeout enforced via ThreadPoolExecutor.result(timeout=...);
+      output-size enforced via a JSON-serialized byte-length check.
+      Both defaults (10s, 32000 bytes) are implementation-level, per
+      TOOL_CONTRACT's explicit deferral of "timeout defaults."
+    reversible: true
+
+  - id: B-DEC-014
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      No permission/authorization check was added anywhere in the
+      executor path -- TOOL_CONTRACT explicitly lists "deciding whether
+      the agent is authorized" as a non-responsibility, and B-004's
+      scope did not include PERMISSION_CONTRACT. ToolExecutor executes
+      any ToolCall handed to it; a future task must insert the
+      authorization decision before execute() is called (Runtime's
+      job, not the executor's).
+    reversible: true
+    note: "Scope boundary, not a design preference -- flagging for the next task's context."

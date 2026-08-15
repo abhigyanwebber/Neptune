@@ -86,3 +86,32 @@ assignments:
       tests/test_registry.py. Full suite: 25 passed (22 always-run +
       3 live, live tests skip automatically when no key is present).
     unblock_action: null
+
+
+  - task_id: B-004-tool-execution-boundary
+    worker_id: B
+    title: "Tool Execution Boundary"
+    status: complete
+    authorized_by: director
+    scope: >
+      Implemented the Tool Execution boundary per TOOL_CONTRACT:
+      core/contracts/tool_execution.py (ToolCall, ToolResult,
+      ToolOutcome, Tool/ToolRegistry/ToolExecutor Protocols,
+      ToolNotFoundError/ToolInputError) and
+      infrastructure/tools/{echo_tool,registry_adapter,executor}.py
+      (EchoTool, ToolRegistryAdapter, ToolExecutorService with
+      timeout + output-size enforcement). No MCP, browser, shell, or
+      sandbox work; no new providers; no permission-decision logic
+      (explicitly TOOL_CONTRACT's non-responsibility, deferred to a
+      future PERMISSION_CONTRACT task).
+    contracts_implemented:
+      - TOOL_CONTRACT
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    tests: "35 passed, 4 skipped (live-credential tests, unrelated to this task's stop condition -- satisfied via MockProviderAdapter per task's explicit allowance)"
