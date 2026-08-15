@@ -180,3 +180,35 @@ decisions:
       job, not the executor's).
     reversible: true
     note: "Scope boundary, not a design preference -- flagging for the next task's context."
+
+
+  - id: B-DEC-015
+    task_id: B-005-observation-feedback-loop
+    decision: >
+      Observation format fixed as a single role="tool" ContextMessage
+      with a deterministic natural-language template (sorted-key JSON
+      for success, "failed (outcome): message" for failure). Full
+      rationale and consequences recorded in
+      05_DECISIONS/ADR-037-observation-feedback-format.md rather than
+      only here, since this is a format decision future tasks need to
+      find without reading DEVELOPMENT_STATE history.
+    reversible: true
+
+  - id: B-DEC-016
+    task_id: B-005-observation-feedback-loop
+    decision: >
+      Modified MockProviderAdapter (infrastructure/providers/
+      reference_adapter.py) to support a two-turn scenario: it now
+      checks for a prior role="tool" message in request.messages and,
+      if present, stops emitting tool_intents and returns a final
+      answer referencing the observation content instead. Also changed
+      its canned tool call from arguments={} to
+      arguments={"text": "hello"}, since {} correctly fails EchoTool's
+      input validation and every existing test happened to bypass
+      intent.arguments by constructing its own ToolCall by hand.
+      This is a test-double enhancement, not a new tool and not
+      provider-specific logic in observation_loop.py itself -- the
+      loop only ever calls the ModelGateway/ToolExecutor Protocols.
+      Verified no regressions: full suite still passes (48 passed, 4
+      skipped) after the change.
+    reversible: true

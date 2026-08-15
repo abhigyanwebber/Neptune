@@ -115,3 +115,33 @@ assignments:
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
     tests: "35 passed, 4 skipped (live-credential tests, unrelated to this task's stop condition -- satisfied via MockProviderAdapter per task's explicit allowance)"
+
+
+  - task_id: B-005-observation-feedback-loop
+    worker_id: B
+    title: "Observation Feedback Loop"
+    status: complete
+    authorized_by: director
+    scope: >
+      Implemented src/neptune/application/observation_loop.py:
+      ObservationMessageBuilder (deterministic ToolResult ->
+      ContextMessage formatting, see ADR-037), ObservationProcessor
+      (executes ToolIntents via ToolExecutor, builds follow-up
+      ModelRequest), LoopResult, and run_observation_loop() driving
+      Model -> ToolIntent -> ToolExecution -> Observation -> Follow-up
+      Model Request to completion through existing ModelGateway/
+      ToolExecutor abstractions only. No provider-specific logic, no
+      new tools, no MCP, no sandboxing, no Runtime/Registry
+      modifications, no permissions layer.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    adr: "ADR-037-observation-feedback-format.md"
+    tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"

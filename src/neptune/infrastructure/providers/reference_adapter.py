@@ -22,8 +22,18 @@ from neptune.core.domain import Capability, CostClass, HealthStatus
 
 class MockProviderAdapter:
     """A deterministic stand-in provider. Echoes the last message and,
-    if tools were offered, emits one canned ToolIntent so the full
-    ModelResult.tool_intents path is exercised too."""
+    if tools were offered and no observation is present yet in the
+    conversation, emits one canned ToolIntent so the full
+    ModelResult.tool_intents path is exercised too.
+
+    Two-turn behavior (added for B-005's observation-loop tests): if a
+    "tool" role message is already present in request.messages (i.e.
+    an observation was fed back), this adapter treats the tool call as
+    resolved and returns a final answer referencing that observation
+    instead of emitting another tool_intent. This lets tests exercise
+    a full Model -> ToolIntent -> Observation -> Follow-up Response
+    cycle without a live provider.
+    """
 
     provider_id = "reference-mock"
 
@@ -48,25 +58,47 @@ class MockProviderAdapter:
             (m.content for m in reversed(request.messages) if m.role == "user"),
             "",
         )
+        observation = next(
+            (m.content for m in reversed(request.messages) if m.role == "tool"),
+            None,
+        )
+
         tool_intents: list[ToolIntent] = []
-        if request.tools:
+        if request.tools and observation is None:
             tool_intents.append(
                 ToolIntent(
                     call_id="mock-call-1",
                     tool_name=request.tools[0].name,
-                    arguments={},
+                    # Realistic canned arguments rather than {} -- a
+                    # real model supplies arguments matching the
+                    # tool's declared schema. Hardcoded to "hello"
+                    # since this mock has no real reasoning; it's
+                    # deterministic on purpose (B-005 tests depend on
+                    # this exact value).
+                    arguments={"text": "hello"},
                 )
             )
+
+        if observation is not None:
+            output_text = f"[mock:{request.model_id}] final answer based on observation: {observation}"
+            finish_reason = "stop"
+        elif tool_intents:
+            output_text = None
+            finish_reason = "tool_calls"
+        else:
+            output_text = f"[mock:{request.model_id}] echo: {last_user}"
+            finish_reason = "stop"
+
         latency_ms = (time.perf_counter() - start) * 1000
         return ProviderResult(
-            output_text=f"[mock:{request.model_id}] echo: {last_user}",
+            output_text=output_text,
             tool_intents=tool_intents,
             usage=ModelUsage(
                 input_tokens=sum(len(m.content.split()) for m in request.messages),
-                output_tokens=len(last_user.split()),
+                output_tokens=len((output_text or "").split()),
                 total_tokens=None,
                 cost_estimate_usd=0.0,
             ),
             latency_ms=latency_ms,
-            finish_reason="stop",
+            finish_reason=finish_reason,
         )
