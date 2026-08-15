@@ -119,3 +119,47 @@ decisions:
       registry an id came from.
     status: recorded
 
+  - id: ADR-A-010
+    made_by: claude-a
+    title: "Registry audit events use a sentinel task_id; removed an incorrect ForeignKey on EventModel.task_id"
+    rationale: >
+      Task A-004 requires registry mutations to emit Events via the
+      existing Event infrastructure, but registry entries aren't scoped to
+      any Task. event.schema.json (FROZEN) requires task_id to be a
+      non-null string -- it does NOT require that string to reference an
+      existing Task row. core/registry/audit.py uses a documented sentinel
+      task_id ("system-registry") for these events rather than weakening
+      the frozen schema. This surfaced a real bug: EventModel.task_id
+      (infrastructure/persistence/models/orm.py) had a
+      ForeignKey("tasks.task_id") constraint that was never required by
+      the contract. SQLite silently ignored it (constraints unenforced by
+      default), so it passed every SQLite-backed test through A-003, but
+      Postgres enforced it and rejected the first non-task-scoped event.
+      Fixed by removing the ForeignKey (task_id stays a required, non-null
+      String column -- only the referential-integrity constraint is
+      gone). This is a persistence-layer bugfix, not a change to the
+      frozen Event contract.
+    status: recorded
+    known_limitation: >
+      Fixing this required a local dev Postgres volume reset
+      (`docker compose down -v`) since create_all() doesn't alter existing
+      tables. Recorded as NEPTUNE-DIRECTOR-ALEMBIC-DECISION in
+      dependencies.yaml for the director's judgment call.
+
+  - id: ADR-A-011
+    made_by: claude-a
+    title: "Expanded KNOWN_PROVIDERS to include ollama and openai_compatible"
+    rationale: >
+      Task A-004 explicitly asked for Groq, OpenRouter, Gemini, Ollama, and
+      OpenAI-compatible provider entries -- two of which (ollama,
+      openai_compatible) were outside A-003's original fixed vocabulary
+      (groq/openrouter/gemini/openai/cerebras/mistral). This is an
+      additive vocabulary expansion under explicit director instruction,
+      not a unilateral scope change -- consistent with ADR-A-007's
+      strict/non-strict design already anticipating vocabulary growth.
+      openai_compatible is registered as provider_type "pattern" (not
+      "model_provider") since it represents the OpenAI-compatibility
+      protocol itself rather than a specific hosted vendor -- documented
+      in 06_REGISTRIES/data/providers.yaml so this distinction isn't lost.
+    status: recorded
+

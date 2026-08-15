@@ -1,0 +1,64 @@
+# Resource catalog seed data (A-004).
+#
+# Definitional entries for Neptune's fixed resource vocabulary. Status is
+# left as ACTIVE only for the resource Neptune's own Stage 0/1 already
+# depends on (postgres, via docker-compose.yml); everything else is
+# DISCOVERED (known to exist, not yet actually provisioned/verified for
+# this project) to avoid claiming something is live when it isn't.
+
+resources:
+  - resource_id: github
+    name: GitHub
+    resource_type: source_control
+    status: DISCOVERED
+    criticality: R1
+    depends_on: []
+    verification_status: candidate
+    notes: "Git hosting, Actions CI, used as Neptune's canonical repository host."
+
+  - resource_id: postgres
+    name: PostgreSQL
+    resource_type: database
+    status: ACTIVE
+    criticality: R0
+    depends_on: [docker]
+    verification_status: verified
+    verification_date: "2026-08-13"
+    notes: "Neptune's durable state store (ADR-030). Local dev instance runs via docker-compose.yml on port 5433."
+
+  - resource_id: supabase
+    name: Supabase
+    resource_type: backend_as_a_service
+    status: DISCOVERED
+    criticality: R2
+    depends_on: [postgres]
+    verification_status: candidate
+    notes: "Postgres-based BaaS (auth, storage, realtime) -- candidate managed-Postgres option, not yet provisioned."
+
+  - resource_id: cloudflare
+    name: Cloudflare
+    resource_type: edge_network
+    status: DISCOVERED
+    criticality: R2
+    depends_on: []
+    verification_status: candidate
+    notes: "CDN / edge compute / DNS candidate for free/cheap deployment -- not yet provisioned."
+
+  - resource_id: local_fs
+    name: Local Filesystem
+    resource_type: storage
+    status: ACTIVE
+    criticality: R1
+    depends_on: []
+    verification_status: candidate
+    notes: "The development workspace filesystem itself."
+
+  - resource_id: docker
+    name: Docker
+    resource_type: container_runtime
+    status: ACTIVE
+    criticality: R0
+    depends_on: []
+    verification_status: verified
+    verification_date: "2026-08-13"
+    notes: "Container runtime already in active use for the local Postgres dev instance."

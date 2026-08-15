@@ -1,25 +1,29 @@
 """Provider catalog.
 
 Fixed vocabulary per director's brief: groq, openrouter, gemini, openai,
-cerebras, mistral. `status` uses the reliability categories already defined
-in 06_REGISTRIES/PROVIDER_REGISTRY.md (STRUCTURAL/BONUS/BURST/LOCAL/RETIRED)
-so this registry is consistent with the Bible's existing vocabulary rather
-than inventing a new one.
+cerebras, mistral (A-003), extended in A-004 with ollama and
+openai_compatible per the director's explicit A-004 instruction to
+populate those two entries (ADR-A-011). `status` uses the reliability
+categories already defined in 06_REGISTRIES/PROVIDER_REGISTRY.md
+(STRUCTURAL/BONUS/BURST/LOCAL/RETIRED).
 
-This is a catalog record only -- no provider SDK, no execution, no
-authentication (PROVIDER_CONTRACT.md invariant: "Provider-specific SDKs
-must not leak into core interfaces").
+Catalog record only -- no provider SDK, no execution, no authentication
+(PROVIDER_CONTRACT.md invariant: "Provider-specific SDKs must not leak
+into core interfaces").
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
+from .audit import emit_registry_event
+
 if TYPE_CHECKING:  # pragma: no cover
     from core.contracts.registry import ProviderRepository
+    from core.contracts.repositories import EventRepository
 
 KNOWN_PROVIDERS: frozenset[str] = frozenset(
-    {"groq", "openrouter", "gemini", "openai", "cerebras", "mistral"}
+    {"groq", "openrouter", "gemini", "openai", "cerebras", "mistral", "ollama", "openai_compatible"}
 )
 
 RELIABILITY_CATEGORIES: frozenset[str] = frozenset(
@@ -41,12 +45,22 @@ class Provider:
     depends_on: list[str] = field(default_factory=list)
     verification_date: Optional[str] = None
     notes: Optional[str] = None
+    # Verification metadata (A-004), additive.
+    verification_source: Optional[str] = None
+    verification_status: Optional[str] = None
+    last_checked: Optional[str] = None
 
 
 class ProviderRegistry:
-    def __init__(self, repository: "ProviderRepository", strict: bool = True) -> None:
+    def __init__(
+        self,
+        repository: "ProviderRepository",
+        strict: bool = True,
+        event_repo: "Optional[EventRepository]" = None,
+    ) -> None:
         self._repo = repository
         self._strict = strict
+        self._events = event_repo
 
     def register(self, provider: Provider) -> None:
         if self._strict and provider.provider_id not in KNOWN_PROVIDERS:
@@ -55,15 +69,18 @@ class ProviderRegistry:
                 f"{sorted(KNOWN_PROVIDERS)}"
             )
         self._repo.create(provider)
+        emit_registry_event(self._events, "registry.provider.registered", provider.provider_id)
 
     def get(self, provider_id: str) -> Optional[Provider]:
         return self._repo.get(provider_id)
 
     def update(self, provider: Provider) -> None:
         self._repo.update(provider)
+        emit_registry_event(self._events, "registry.provider.updated", provider.provider_id)
 
     def delete(self, provider_id: str) -> None:
         self._repo.delete(provider_id)
+        emit_registry_event(self._events, "registry.provider.deleted", provider_id)
 
     def list_all(self) -> list[Provider]:
         return self._repo.list_all()

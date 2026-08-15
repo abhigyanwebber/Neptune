@@ -1,0 +1,57 @@
+# Capability catalog seed data (A-004).
+#
+# These are Neptune's own fixed vocabulary definitions, not external
+# facts about a third party -- so verification_status is "candidate"
+# (internal definition) rather than "verified" (externally checked claim)
+# per the distinction used in providers.yaml.
+
+capabilities:
+  - capability_id: reasoning
+    name: Reasoning
+    description: "Multi-step inference, planning-adjacent chain-of-thought."
+    verification_status: candidate
+
+  - capability_id: coding
+    name: Coding
+    description: "Generating, editing, and reasoning about source code."
+    verification_status: candidate
+
+  - capability_id: web_search
+    name: Web Search
+    description: "Retrieving current information from the web."
+    verification_status: candidate
+
+  - capability_id: vision
+    name: Vision
+    description: "Interpreting image or visual input."
+    verification_status: candidate
+
+  - capability_id: tool_use
+    name: Tool Use
+    description: "Invoking external tools/functions as part of a response."
+    verification_status: candidate
+
+  - capability_id: mcp
+    name: MCP
+    description: "Communicating over the Model Context Protocol."
+    verification_status: candidate
+
+  - capability_id: browser
+    name: Browser
+    description: "Controlling or reading from a web browser."
+    verification_status: candidate
+
+  - capability_id: terminal
+    name: Terminal
+    description: "Executing shell/terminal commands."
+    verification_status: candidate
+
+  - capability_id: memory
+    name: Memory
+    description: "Storing and retrieving information across turns/sessions."
+    verification_status: candidate
+
+  - capability_id: planning
+    name: Planning
+    description: "Decomposing a goal into an ordered sequence of steps."
+    verification_status: candidate

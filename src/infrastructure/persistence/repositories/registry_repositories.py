@@ -47,6 +47,10 @@ class SqlAlchemyCapabilityRepository:
                 raise ValueError(f"Capability not found: {capability.capability_id}")
             model.name = capability.name
             model.description = capability.description
+            model.verification_date = capability.verification_date
+            model.verification_source = capability.verification_source
+            model.verification_status = capability.verification_status
+            model.last_checked = capability.last_checked
             db.commit()
 
     def delete(self, capability_id: str) -> None:
@@ -168,11 +172,27 @@ class SqlAlchemyToolDefinitionRepository:
 # ---------------------------------------------------------------------------
 
 def _capability_to_model(c: Capability) -> CapabilityModel:
-    return CapabilityModel(capability_id=c.capability_id, name=c.name, description=c.description)
+    return CapabilityModel(
+        capability_id=c.capability_id,
+        name=c.name,
+        description=c.description,
+        verification_date=c.verification_date,
+        verification_source=c.verification_source,
+        verification_status=c.verification_status,
+        last_checked=c.last_checked,
+    )
 
 
 def _model_to_capability(m: CapabilityModel) -> Capability:
-    return Capability(capability_id=m.capability_id, name=m.name, description=m.description)
+    return Capability(
+        capability_id=m.capability_id,
+        name=m.name,
+        description=m.description,
+        verification_date=m.verification_date,
+        verification_source=m.verification_source,
+        verification_status=m.verification_status,
+        last_checked=m.last_checked,
+    )
 
 
 def _provider_to_model(p: Provider) -> ProviderModel:
@@ -185,6 +205,9 @@ def _provider_to_model(p: Provider) -> ProviderModel:
         depends_on=p.depends_on,
         verification_date=p.verification_date,
         notes=p.notes,
+        verification_source=p.verification_source,
+        verification_status=p.verification_status,
+        last_checked=p.last_checked,
     )
 
 
@@ -196,6 +219,9 @@ def _apply_provider_to_model(p: Provider, m: ProviderModel) -> None:
     m.depends_on = p.depends_on
     m.verification_date = p.verification_date
     m.notes = p.notes
+    m.verification_source = p.verification_source
+    m.verification_status = p.verification_status
+    m.last_checked = p.last_checked
 
 
 def _model_to_provider(m: ProviderModel) -> Provider:
@@ -208,6 +234,9 @@ def _model_to_provider(m: ProviderModel) -> Provider:
         depends_on=list(m.depends_on or []),
         verification_date=m.verification_date,
         notes=m.notes,
+        verification_source=m.verification_source,
+        verification_status=m.verification_status,
+        last_checked=m.last_checked,
     )
 
 
@@ -221,6 +250,9 @@ def _resource_to_model(r: Resource) -> ResourceModel:
         depends_on=r.depends_on,
         verification_date=r.verification_date,
         notes=r.notes,
+        verification_source=r.verification_source,
+        verification_status=r.verification_status,
+        last_checked=r.last_checked,
     )
 
 
@@ -232,6 +264,9 @@ def _apply_resource_to_model(r: Resource, m: ResourceModel) -> None:
     m.depends_on = r.depends_on
     m.verification_date = r.verification_date
     m.notes = r.notes
+    m.verification_source = r.verification_source
+    m.verification_status = r.verification_status
+    m.last_checked = r.last_checked
 
 
 def _model_to_resource(m: ResourceModel) -> Resource:
@@ -244,6 +279,9 @@ def _model_to_resource(m: ResourceModel) -> Resource:
         depends_on=list(m.depends_on or []),
         verification_date=m.verification_date,
         notes=m.notes,
+        verification_source=m.verification_source,
+        verification_status=m.verification_status,
+        last_checked=m.last_checked,
     )
 
 
@@ -256,6 +294,9 @@ def _tool_to_model(t: ToolDefinition) -> ToolDefinitionModel:
         depends_on=t.depends_on,
         verification_date=t.verification_date,
         notes=t.notes,
+        verification_source=t.verification_source,
+        verification_status=t.verification_status,
+        last_checked=t.last_checked,
     )
 
 
@@ -266,6 +307,9 @@ def _apply_tool_to_model(t: ToolDefinition, m: ToolDefinitionModel) -> None:
     m.depends_on = t.depends_on
     m.verification_date = t.verification_date
     m.notes = t.notes
+    m.verification_source = t.verification_source
+    m.verification_status = t.verification_status
+    m.last_checked = t.last_checked
 
 
 def _model_to_tool(m: ToolDefinitionModel) -> ToolDefinition:
@@ -277,4 +321,7 @@ def _model_to_tool(m: ToolDefinitionModel) -> ToolDefinition:
         depends_on=list(m.depends_on or []),
         verification_date=m.verification_date,
         notes=m.notes,
+        verification_source=m.verification_source,
+        verification_status=m.verification_status,
+        last_checked=m.last_checked,
     )

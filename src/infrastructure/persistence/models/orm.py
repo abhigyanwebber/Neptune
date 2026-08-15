@@ -85,7 +85,16 @@ class EventModel(Base):
 
     event_id: Mapped[str] = mapped_column(String, primary_key=True)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
-    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.task_id"), nullable=False)
+    # NOT a ForeignKey to tasks.task_id (deliberately, as of A-004). The
+    # frozen event.schema.json requires task_id to be a string, not that
+    # it reference an existing Task row -- e.g. registry audit events
+    # (core/registry/audit.py) use a sentinel "system-registry" task_id
+    # for events that aren't scoped to any real Task. An earlier version
+    # of this column had a ForeignKey constraint; it worked on SQLite
+    # (constraints unenforced there by default) but broke on Postgres
+    # (constraints enforced) the first time a non-task-scoped event was
+    # written. See ADR-A-010.
+    task_id: Mapped[str] = mapped_column(String, nullable=False)
     session_id: Mapped[str | None] = mapped_column(String, nullable=True)
     agent_id: Mapped[str | None] = mapped_column(String, nullable=True)
     actor: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -106,6 +115,10 @@ class CapabilityModel(Base):
     capability_id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ProviderModel(Base):
@@ -119,6 +132,9 @@ class ProviderModel(Base):
     depends_on: Mapped[list] = mapped_column(JSON, default=list)
     verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ResourceModel(Base):
@@ -132,6 +148,9 @@ class ResourceModel(Base):
     depends_on: Mapped[list] = mapped_column(JSON, default=list)
     verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ToolDefinitionModel(Base):
@@ -144,6 +163,9 @@ class ToolDefinitionModel(Base):
     depends_on: Mapped[list] = mapped_column(JSON, default=list)
     verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class CheckpointModel(Base):

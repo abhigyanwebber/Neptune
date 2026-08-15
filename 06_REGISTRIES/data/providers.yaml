@@ -1,0 +1,108 @@
+# Provider catalog seed data (A-004).
+#
+# Only verified facts recorded here. Each entry's verification_source is
+# the specific documentation page the base_url / OpenAI-compatibility
+# claim was checked against on verification_date. "capabilities" list
+# what each provider's API surface exposes at the protocol level (e.g.
+# "an OpenAI-compatible chat completions endpoint exists"), NOT a claim
+# about which specific models are hosted, what free-tier limits currently
+# apply, or how those change over time -- that operational detail belongs
+# to Claude B's provider-registration work (see
+# DEVELOPMENT_STATE/dependencies.yaml: NEPTUNE-B-PROVIDER-REGISTRATION)
+# and to 06_REGISTRIES/PROVIDER_REGISTRY.md's living reliability table,
+# not to this static seed file.
+#
+# notes.base_url values below are the documented API base URL as of
+# verification_date -- treat as a starting point to re-verify before
+# production use, not a permanent guarantee (endpoints do change).
+
+providers:
+  - provider_id: groq
+    name: Groq
+    provider_type: model_provider
+    capabilities: [reasoning, coding, tool_use]
+    status: STRUCTURAL
+    depends_on: []
+    verification_date: "2026-08-13"
+    verification_source: "https://console.groq.com/docs/openai"
+    verification_status: verified
+    notes: >
+      Cloud-hosted inference. Exposes an OpenAI-compatible API at
+      base_url https://api.groq.com/openai/v1 (confirmed on Groq's own
+      docs). Requires a Groq API key. Known incompatibilities exist
+      versus the full OpenAI API surface (documented on the same page) --
+      not every OpenAI client feature is supported.
+
+  - provider_id: openrouter
+    name: OpenRouter
+    provider_type: model_router
+    capabilities: [reasoning, coding, vision, tool_use]
+    status: STRUCTURAL
+    depends_on: []
+    verification_date: "2026-08-13"
+    verification_source: "https://openrouter.ai/docs/quickstart"
+    verification_status: verified
+    notes: >
+      Multi-provider routing proxy, not a model host itself -- fronts
+      models from OpenAI, Anthropic, Google, Meta, and others behind one
+      OpenAI-compatible API. Confirmed base_url:
+      https://openrouter.ai/api/v1. Requires an OpenRouter API key
+      (format sk-or-v1-...). Model identifiers use "provider/model" form
+      (e.g. "openai/gpt-4o").
+
+  - provider_id: gemini
+    name: Google Gemini
+    provider_type: model_provider
+    capabilities: [reasoning, coding, vision, tool_use]
+    status: STRUCTURAL
+    depends_on: []
+    verification_date: "2026-08-13"
+    verification_source: "https://ai.google.dev/api"
+    verification_status: verified
+    notes: >
+      Cloud-hosted inference. Native REST base_url:
+      https://generativelanguage.googleapis.com (paths under /v1beta/).
+      Auth via x-goog-api-key header with a Gemini API key from Google AI
+      Studio. Google also publishes an OpenAI-compatibility layer at
+      https://generativelanguage.googleapis.com/v1beta/openai/ for
+      OpenAI-SDK-based clients (confirmed via Google's own developer
+      blog).
+
+  - provider_id: ollama
+    name: Ollama
+    provider_type: local_runtime
+    capabilities: [reasoning, coding, tool_use]
+    status: LOCAL
+    depends_on: [local_fs]
+    verification_date: "2026-08-13"
+    verification_source: "https://docs.ollama.com/api/openai-compatibility"
+    verification_status: verified
+    notes: >
+      Local, self-hosted model runtime -- not a cloud provider. Runs on
+      the user's own hardware; no API key required for real
+      authentication (any non-empty string is accepted). Default REST API
+      at http://localhost:11434, with an OpenAI-compatible endpoint at
+      http://localhost:11434/v1 (confirmed on Ollama's own docs). Model
+      availability depends entirely on what the user has pulled locally
+      -- Core does not assume any specific model is present.
+
+  - provider_id: openai_compatible
+    name: OpenAI-Compatible (generic)
+    provider_type: pattern
+    capabilities: [reasoning, coding, tool_use]
+    status: STRUCTURAL
+    depends_on: []
+    verification_date: "2026-08-13"
+    verification_source: "https://console.groq.com/docs/openai, https://openrouter.ai/docs/quickstart, https://docs.ollama.com/api/openai-compatibility"
+    verification_status: verified
+    notes: >
+      Not a specific vendor -- this entry represents the interoperability
+      pattern itself: any endpoint that implements the OpenAI
+      chat-completions request/response shape (base_url + api_key
+      override, same request/response JSON). Groq, OpenRouter, and Ollama
+      above are all concrete instances of this pattern; this entry exists
+      so the Router/Gateway can recognize "any OpenAI-compatible endpoint"
+      as a routing target even when the specific vendor isn't one of the
+      other four fixed entries (e.g. a self-hosted vLLM/LM Studio
+      instance). No live endpoint of its own -- purely a classification
+      entry.

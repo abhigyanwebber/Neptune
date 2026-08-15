@@ -56,3 +56,24 @@ assignments:
       - MCP execution
       - sandbox
       - Router implementation (registries only expose the lookups a future Router will use)
+
+  - task_id: NEPTUNE-A-004-REGISTRY-POPULATION
+    worker_id: A
+    stage: "registry-population"
+    title: "Registry Population and Verification System: loader, verification metadata, snapshot export, audit trail, verified provider catalog"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/registry/registry_loader.py (YAML -> registry upsert, tolerant of unknown fields/missing files)
+      - src/core/registry/registry_exporter.py (full registry state -> JSON snapshot)
+      - src/core/registry/audit.py (registry mutations -> Event, reusing existing Event infrastructure)
+      - verification_source/verification_status/last_checked fields added to Capability/Provider/Resource/ToolDefinition (additive, backward-compatible)
+      - KNOWN_PROVIDERS extended with ollama, openai_compatible (director-directed vocabulary expansion)
+      - 06_REGISTRIES/data/*.yaml (capabilities.yaml, providers.yaml, resources.yaml, tools.yaml seed data; providers.yaml entries carry a verification_source URL per director's "only verified facts" instruction)
+      - Bugfix: removed incorrect ForeignKey(tasks.task_id) constraint on EventModel.task_id (see ADR-A-010)
+      - tests/unit/registry (loader, exporter, audit), tests/integration/registry (population recovery)
+    out_of_scope:
+      - runtime/agent-loop changes
+      - tool execution
+      - Model Gateway
+      - Alembic (schema changes in this task required a local dev volume reset instead; flagged as a limitation, not resolved)

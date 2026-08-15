@@ -1,0 +1,50 @@
+# Tool catalog seed data (A-004).
+#
+# Definitional entries for Neptune's fixed tool vocabulary. capability
+# maps each tool to the nearest entry in capabilities.yaml. depends_on
+# expresses infrastructure a tool would need to actually run (e.g. the
+# browser tool needs a sandboxed runtime) -- registering the dependency
+# here does NOT implement or execute anything (TOOL_CONTRACT.md:
+# existence does not grant permission), it only makes the relationship
+# discoverable for dependency resolution.
+
+tools:
+  - tool_id: browser
+    name: Browser
+    capability: browser
+    risk_class: R2
+    depends_on: [docker]
+    verification_status: candidate
+    notes: "Web browser automation tool. Depends on a sandboxed container runtime for safe execution."
+
+  - tool_id: terminal
+    name: Terminal
+    capability: terminal
+    risk_class: R3
+    depends_on: [docker]
+    verification_status: candidate
+    notes: "Shell command execution tool. Highest risk class -- depends on sandboxing."
+
+  - tool_id: filesystem
+    name: Filesystem
+    capability: tool_use
+    risk_class: R2
+    depends_on: [local_fs]
+    verification_status: candidate
+    notes: "File read/write/edit tool, scoped to a workspace on local_fs."
+
+  - tool_id: search
+    name: Search
+    capability: web_search
+    risk_class: R1
+    depends_on: []
+    verification_status: candidate
+    notes: "Web search tool."
+
+  - tool_id: mcp
+    name: MCP
+    capability: mcp
+    risk_class: R1
+    depends_on: []
+    verification_status: candidate
+    notes: "Model Context Protocol client tool -- connects to external MCP servers."

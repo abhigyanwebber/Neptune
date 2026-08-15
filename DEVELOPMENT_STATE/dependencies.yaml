@@ -56,3 +56,35 @@ dependencies:
       resolves candidate providers via ProviderRegistry.find_by_capability()
       and candidate tools via ToolRegistry.find_by_capability(). This entry
       documents the integration point; no Router task is active yet.
+
+  - task_id: NEPTUNE-A-004-REGISTRY-POPULATION
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      Loader/exporter/audit operate on the registry service classes from
+      A-003 without changing their public shape; verification metadata
+      fields are additive. Also fixes a Stage-0/1-era bug (EventModel.task_id
+      ForeignKey) discovered while wiring the audit trail -- see ADR-A-010.
+
+  - task_id: NEPTUNE-B-PROVIDER-REGISTRATION-UPDATE
+    depends_on:
+      - NEPTUNE-A-004-REGISTRY-POPULATION
+    note: >
+      Supersedes the NEPTUNE-B-PROVIDER-REGISTRATION note above: as of A-004,
+      groq/openrouter/gemini/ollama/openai_compatible already have a verified
+      baseline entry in 06_REGISTRIES/data/providers.yaml (base URL,
+      OpenAI-compatibility, auth method). Claude B's job is to layer live
+      operational data on top (current models, rate limits, uptime) via
+      ProviderRegistry.update(), not to register these five from scratch.
+      openai/cerebras/mistral remain unregistered -- still B's to add.
+
+  - task_id: NEPTUNE-DIRECTOR-ALEMBIC-DECISION
+    depends_on: []
+    note: >
+      Flagged, not resolved: A-004 needed a local dev Postgres volume reset
+      twice (verification_date/source/status columns, then the FK removal)
+      because create_all() doesn't alter existing tables. This is the second
+      time schema evolution has required a manual reset (see A-004 known
+      limitations). Recommend the director weigh introducing a minimal
+      Alembic setup now that there's concrete recurring cost evidence, vs.
+      continuing to defer it.
