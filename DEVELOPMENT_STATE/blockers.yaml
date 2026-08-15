@@ -1,1 +1,13 @@
-blockers: []
+blockers:
+  - id: B-BLOCK-001
+    task_id: B-003-first-real-provider-integration
+    worker_id: B
+    severity: blocking_stop_condition
+    description: >
+      No GROQ_API_KEY is available. B-003's stop condition explicitly
+      requires a real successful call from a Neptune Runtime request
+      through the Gateway to a live Groq model. This cannot be
+      satisfied without a credential, which this worker cannot
+      generate itself.
+    requires: "Human operator to provide GROQ_API_KEY (free, no card, from https://console.groq.com/keys)"
+    everything_else_complete: true

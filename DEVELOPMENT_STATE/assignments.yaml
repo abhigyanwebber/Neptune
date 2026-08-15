@@ -42,3 +42,42 @@ assignments:
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
     adapters_written: false
+
+
+  - task_id: B-003-first-real-provider-integration
+    worker_id: B
+    title: "First Real Provider Integration"
+    status: blocked_on_credential
+    authorized_by: director
+    scope: >
+      Converted GroqAdapter scaffold to a live implementation using
+      real HTTPS requests (requests library, no provider SDK/litellm
+      dependency), externalized config (GroqConfig.from_env(), no
+      hardcoded secrets), full HTTP error-type mapping, mocked
+      failure-mode tests (invalid key, unavailable model, timeout,
+      rate limit, connection error, server error), a Runtime stand-in
+      script and a gated live e2e test suite driving the request
+      through ModelGatewayService/CapabilityRouter (not direct
+      adapter invocation), and a capability-registration probe script.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    blocker: >
+      Stop condition (a Neptune Runtime request successfully reaching
+      a real Groq model and returning a response through the Gateway)
+      requires a live GROQ_API_KEY, which is not available to this
+      worker and is not set anywhere on the workspace machine
+      (checked process env and persistent User/Machine scopes).
+      Everything that does not require the live call is complete and
+      tested (22 passed, 3 skipped-pending-credential).
+    unblock_action: >
+      Set GROQ_API_KEY in the environment (see .env.example) and run
+      scripts/run_live_groq_smoke_test.py or
+      python -m pytest tests/test_groq_live_e2e.py -v

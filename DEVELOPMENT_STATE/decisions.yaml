@@ -66,3 +66,45 @@ decisions:
       required a contract change; recorded as research findings.
     reversible: false
     note: "Factual finding, not a design choice -- recorded for traceability."
+
+
+  - id: B-DEC-007
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Implemented GroqAdapter with `requests` making direct HTTPS
+      calls to Groq's OpenAI-compatible REST endpoint, not LiteLLM.
+      litellm is still not installed in this environment, and the
+      task explicitly required "Real HTTPS requests" with "no provider
+      SDK leakage" -- a direct requests-based implementation is
+      simpler to test (precise control over mocked HTTP status codes
+      for the failure-validation matrix) and has one fewer dependency.
+      ADR-032's LiteLLM boundary is not violated: LiteLLM remains the
+      recommended normalization transport at the architecture level,
+      this is an implementation-detail substitution for one adapter,
+      fully reversible.
+    reversible: true
+
+  - id: B-DEC-008
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Built scripts/run_live_groq_smoke_test.py as a Runtime stand-in
+      rather than waiting on Claude A's Stage 0/1 Task/Session/Turn
+      objects, so the request still "originates through Neptune
+      contracts, not direct adapter invocation" as required. It
+      constructs a ModelRequest with placeholder task/session/turn id
+      strings and drives ModelGatewayService.infer() -- the same path
+      a real Runtime will use once A's Stage 1 lands. Documented
+      explicitly as a stand-in, not a competing implementation of A's
+      domain (per B-001/B-002 dependency notes).
+    reversible: true
+
+  - id: B-DEC-009
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Registry updates from live capability discovery are not
+      auto-written by code. scripts/probe_groq_models.py fetches the
+      live model list and prints it for human review; a person then
+      updates config/registries/model_registry.yaml by hand. This
+      matches the existing registry discipline (snapshots require
+      revalidation, not silent overwrite) established in B-001/B-002.
+    reversible: true

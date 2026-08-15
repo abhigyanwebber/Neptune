@@ -90,4 +90,4 @@ def test_infrastructure_may_import_provider_sdks() -> None:
         / "src" / "neptune" / "infrastructure" / "providers" / "groq_adapter.py"
     )
     source = groq_adapter_path.read_text()
-    assert "import litellm" in source
+    assert "import requests" in source
