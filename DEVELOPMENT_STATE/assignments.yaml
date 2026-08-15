@@ -77,3 +77,20 @@ assignments:
       - tool execution
       - Model Gateway
       - Alembic (schema changes in this task required a local dev volume reset instead; flagged as a limitation, not resolved)
+
+  - task_id: NEPTUNE-A-005-RUNTIME-DRIVER
+    worker_id: A
+    stage: "runtime-driver"
+    title: "Runtime Driver Layer: RuntimeDriver orchestrates repeated AgentRuntime.run_turn() calls -- continue/complete/stop policy"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/runtime/driver.py (RuntimeDriver, DriverConfig, DriverResult, DriverOutcome)
+      - 05_DECISIONS/ADR-038 (driver execution policy rationale)
+      - tests/unit/runtime/test_driver.py (completion, tool-call continuation, max-round termination, failed-tool paths)
+      - tests/integration/runtime/test_driver_recovery.py (two-OS-process checkpoint + resume across a driver-level restart)
+    out_of_scope:
+      - model adapter changes (engine.py's ModelGatewayPort/ToolPort untouched)
+      - registry modifications
+      - new tool implementations
+      - smarter/multi-signal completion policy (deferred to ADR-038's Validation section, pending a real Model Gateway)

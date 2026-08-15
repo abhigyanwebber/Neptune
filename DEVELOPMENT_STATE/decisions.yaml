@@ -163,3 +163,22 @@ decisions:
       in 06_REGISTRIES/data/providers.yaml so this distinction isn't lost.
     status: recorded
 
+  - id: ADR-A-012
+    made_by: claude-a
+    title: "RuntimeDriver: single-signal (tool_calls presence) continue/complete/stop policy"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-038-runtime-driver-policy.md.
+      Summary: the only signal RuntimeDriver uses to decide whether a Turn
+      is final is whether the model made tool calls that turn --
+      deliberately not parsing model_response.content or assuming any
+      provider-specific completion field, since neither exists yet
+      (Gateway/Tool boundary are opaque dicts by design, ADR-A-005) and
+      the director's brief forbids provider-specific assumptions.
+      tool_failed is a hard stop, not a retry (retry policy is
+      undesigned, not defaulted). Driver-level max_turns is distinct from
+      and does not touch engine.py's internal _MAX_TOOL_ROUNDS_PER_TURN.
+      Checkpointing after every turn by default guarantees a checkpoint
+      exists at whatever point execution stops, so resume always has
+      something to resume from.
+    status: recorded
+

@@ -88,3 +88,23 @@ dependencies:
       limitations). Recommend the director weigh introducing a minimal
       Alembic setup now that there's concrete recurring cost evidence, vs.
       continuing to defer it.
+
+  - task_id: NEPTUNE-A-005-RUNTIME-DRIVER
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      RuntimeDriver is a pure consumer of AgentRuntime's seven public
+      methods (create_task, start_agent_run, start_session, run_turn,
+      checkpoint, resume, complete_task) -- no changes to engine.py were
+      needed or made.
+
+  - task_id: NEPTUNE-B-MODEL-GATEWAY-DRIVER-SIGNAL
+    depends_on:
+      - NEPTUNE-A-005-RUNTIME-DRIVER
+    note: >
+      Once Claude B's real Model Gateway exists, RuntimeDriver.should_complete
+      currently uses only "did this turn make tool_calls" as its completion
+      signal (ADR-038). If the real Gateway's normalized response includes a
+      richer completion signal (finish_reason, structured stop signal, etc.),
+      that's the point to revisit should_complete/should_continue with a
+      second real signal instead of the current single-signal policy.
