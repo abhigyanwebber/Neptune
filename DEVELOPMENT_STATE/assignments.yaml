@@ -94,3 +94,21 @@ assignments:
       - registry modifications
       - new tool implementations
       - smarter/multi-signal completion policy (deferred to ADR-038's Validation section, pending a real Model Gateway)
+
+  - task_id: NEPTUNE-A-006-RESOLUTION-LAYER
+    worker_id: A
+    stage: "resolution-layer"
+    title: "Resource & Capability Resolution Layer: CapabilityResolver, ProviderResolver, ResourceResolver, ResolutionResult -- selection logic only, no execution"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/resolution/ (models.py, capability_resolver.py, resource_resolver.py, provider_resolver.py)
+      - 05_DECISIONS/ADR-039 (provider selection ranking rationale)
+      - tests/unit/resolution/ (capability lookup, provider selection, dependency expansion, unresolved dependency, dependency cycle)
+      - tests/integration/resolution/ (load real registry seed, resolve, reproduce identical result after a process restart)
+    out_of_scope:
+      - provider calls / HTTP
+      - tool execution
+      - runtime actions
+      - Driver changes (src/core/runtime/driver.py untouched)
+      - Runtime changes (src/core/runtime/engine.py untouched)

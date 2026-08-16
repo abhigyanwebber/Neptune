@@ -108,3 +108,32 @@ dependencies:
       richer completion signal (finish_reason, structured stop signal, etc.),
       that's the point to revisit should_complete/should_continue with a
       second real signal instead of the current single-signal policy.
+
+  - task_id: NEPTUNE-A-006-RESOLUTION-LAYER
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+      - NEPTUNE-A-004-REGISTRY-POPULATION
+    note: >
+      ProviderResolver/ResourceResolver are pure consumers of the four
+      registry service classes and the existing resolve_dependencies()
+      function from A-003 -- no registry code was modified.
+
+  - task_id: NEPTUNE-ROUTER-USES-RESOLUTION-LAYER
+    depends_on:
+      - NEPTUNE-A-006-RESOLUTION-LAYER
+    note: >
+      The future Router (ROUTER_CONTRACT.md) should call
+      ProviderResolver.resolve_provider() rather than querying
+      ProviderRegistry.find_by_capability() directly, so routing benefits
+      from the ranking/dependency-expansion logic in one place. This entry
+      documents the integration point; no Router task is active yet.
+
+  - task_id: NEPTUNE-B-PROVIDER-METADATA-FOR-RANKING
+    depends_on:
+      - NEPTUNE-A-006-RESOLUTION-LAYER
+    note: >
+      ADR-039's ranking currently uses only status + verification_status.
+      If Claude B's provider registrations start carrying live operational
+      metadata (latency, rate-limit headroom), that's the point to extend
+      ProviderResolver._rank_key with a real third signal instead of the
+      alphabetical-id tiebreak.

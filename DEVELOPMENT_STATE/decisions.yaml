@@ -182,3 +182,20 @@ decisions:
       something to resume from.
     status: recorded
 
+  - id: ADR-A-013
+    made_by: claude-a
+    title: "Resolution layer: status + verification_status + alphabetical-id provider ranking"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-039-resolution-layer-selection-policy.md.
+      Summary: ProviderResolver ranks eligible providers by reliability
+      status (RETIRED excluded entirely, not just ranked last), then
+      verification_status, then provider_id alphabetically as a
+      deterministic tiebreak -- no provider name or vendor-specific field
+      is ever read. Unrecognized status/verification_status values sort
+      after known ones rather than raising, so a future vocabulary
+      expansion (as already happened once, ADR-A-011) doesn't break
+      resolution. "No eligible provider" returns a ResolutionResult with
+      provider=None rather than raising, consistent with this layer doing
+      selection only, never execution.
+    status: recorded
+
