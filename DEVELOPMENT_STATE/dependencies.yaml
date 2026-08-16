@@ -137,3 +137,35 @@ dependencies:
       metadata (latency, rate-limit headroom), that's the point to extend
       ProviderResolver._rank_key with a real third signal instead of the
       alphabetical-id tiebreak.
+
+  - task_id: NEPTUNE-A-007-PLANNING-LAYER
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      PlanExecutor's dependency-graph validation reuses
+      core.registry.dependency_resolution.resolve_dependencies() unchanged
+      (A-003) -- no new cycle-detection code, no registry code modified.
+
+  - task_id: NEPTUNE-PLAN-GENERATION-NOT-YET-BUILT
+    depends_on:
+      - NEPTUNE-A-007-PLANNING-LAYER
+    note: >
+      A-007 deliberately builds only the Plan/PlanStep contracts and
+      PlanExecutor control flow -- every test plan is hand-authored. Actual
+      goal-to-plan decomposition (the "sophisticated reasoning" and
+      "research logic" the brief explicitly excludes) is future work once
+      a real Model Gateway exists to generate steps against. This entry
+      documents that gap; no task is active for it yet.
+
+  - task_id: NEPTUNE-RUNTIME-DRIVER-PLAN-INTEGRATION-NOT-YET-BUILT
+    depends_on:
+      - NEPTUNE-A-007-PLANNING-LAYER
+      - NEPTUNE-A-005-RUNTIME-DRIVER
+    note: >
+      RuntimeDriver (A-005) and PlanExecutor (A-007) are independent today
+      -- RuntimeDriver drives Turns within a Session; PlanExecutor drives
+      PlanSteps within a Plan. Neither references the other
+      (RuntimeDriver.driver.py was explicitly not modified this task). A
+      future task may want a PlanStep's capability_id to inform which
+      Turn/tool_call gets requested, but that wiring doesn't exist yet and
+      wasn't in scope for A-007.

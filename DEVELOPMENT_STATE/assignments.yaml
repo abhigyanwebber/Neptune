@@ -112,3 +112,23 @@ assignments:
       - runtime actions
       - Driver changes (src/core/runtime/driver.py untouched)
       - Runtime changes (src/core/runtime/engine.py untouched)
+
+  - task_id: NEPTUNE-A-007-PLANNING-LAYER
+    worker_id: A
+    stage: "planning-layer"
+    title: "Planning Contract And Plan Executor: Goal/Plan/PlanStep/StepStatus + PlanExecutor -- contracts and execution flow only, no reasoning"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/planning/ (models.py: Goal/Plan/PlanStep/StepStatus; executor.py: PlanExecutor; errors.py)
+      - src/core/contracts/planning.py (PlanRepository Protocol)
+      - src/infrastructure/persistence (PlanModel ORM + SqlAlchemyPlanRepository; steps persisted as JSON, no separate steps table)
+      - 05_DECISIONS/ADR-040 (ordering, failure-cascade, and persistence-shape rationale)
+      - tests/unit/planning/ (single-step, multi-step sequential, dependency graph/diamond, cycle/unknown-dependency rejection, failed-step cascade, completion detection, deterministic ordering, persistence reload)
+      - tests/integration/planning/ (literal Plan -> Execute Step 1 -> Persist -> Reload -> Execute Step 2 -> Complete via two-OS-process test)
+    out_of_scope:
+      - provider calls
+      - research logic
+      - AI-generated plans (all test plans are hand-authored)
+      - RuntimeDriver changes (src/core/runtime/driver.py untouched)
+      - ToolExecutor changes (no ToolExecutor exists yet; not created here either)

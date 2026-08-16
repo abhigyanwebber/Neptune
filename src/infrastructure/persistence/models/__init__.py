@@ -4,6 +4,7 @@ from .orm import (
     CapabilityModel,
     CheckpointModel,
     EventModel,
+    PlanModel,
     ProviderModel,
     ResourceModel,
     SessionModel,
@@ -24,4 +25,5 @@ __all__ = [
     "ProviderModel",
     "ResourceModel",
     "ToolDefinitionModel",
+    "PlanModel",
 ]

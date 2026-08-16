@@ -1,3 +1,4 @@
+from .planning_repositories import SqlAlchemyPlanRepository
 from .registry_repositories import (
     SqlAlchemyCapabilityRepository,
     SqlAlchemyProviderRepository,
@@ -24,4 +25,5 @@ __all__ = [
     "SqlAlchemyProviderRepository",
     "SqlAlchemyResourceRepository",
     "SqlAlchemyToolDefinitionRepository",
+    "SqlAlchemyPlanRepository",
 ]

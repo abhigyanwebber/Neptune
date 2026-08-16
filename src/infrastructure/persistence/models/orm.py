@@ -109,6 +109,18 @@ class EventModel(Base):
     )
 
 
+class PlanModel(Base):
+    __tablename__ = "plans"
+
+    plan_id: Mapped[str] = mapped_column(String, primary_key=True)
+    goal_id: Mapped[str] = mapped_column(String, nullable=False)
+    steps: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (Index("ix_plans_goal_id", "goal_id"),)
+
+
 class CapabilityModel(Base):
     __tablename__ = "capabilities"
 

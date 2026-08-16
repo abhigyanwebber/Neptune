@@ -199,3 +199,24 @@ decisions:
       selection only, never execution.
     status: recorded
 
+  - id: ADR-A-014
+    made_by: claude-a
+    title: "Plan step ordering, failure cascade, and JSON-blob persistence"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-040-plan-executor-policy.md.
+      Summary: select_next_step() follows Plan.steps declared order
+      (deterministic, preserves authoring intent) not alphabetical.
+      fail_step() cascades SKIPPED to transitive dependents by default
+      (cascade_skip=True, overridable) since a step whose dependency
+      failed can never become executable -- this is the only path that
+      produces StepStatus.SKIPPED and the only way is_complete() can give
+      a correct answer without manual intervention. Plan.steps persists
+      as a single JSON column (PlanModel.steps) rather than a separate
+      table, matching the existing precedent for Turn.tool_calls and
+      Provider.capabilities/depends_on -- every read/write in this task
+      needs the whole ordered list, nothing needs cross-plan step
+      queries. Dependency-graph cycle/reference validation reuses
+      core.registry.dependency_resolution.resolve_dependencies()
+      unchanged (A-003) rather than a new implementation.
+    status: recorded
+
