@@ -13,3 +13,9 @@ workers:
       - B-003-first-real-provider-integration
       - B-004-tool-execution-boundary
       - B-005-observation-feedback-loop
+      - B-006-tool-execution-recovery-validation
+    notes: >
+      worker/claude-a was merged locally into worker/claude-b at
+      commit b4fb5a1 for B-006. worker/claude-a itself is untouched;
+      this note is informational for whoever next reviews branch
+      state.

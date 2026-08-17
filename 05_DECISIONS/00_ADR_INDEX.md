@@ -46,5 +46,6 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-037 — Core Runtime open-source evaluation
 - ADR-038 — Runtime Driver policy
 - ADR-039 — Observation feedback format
+- ADR-040 — ToolPort attribution seam (B-006 finding)
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

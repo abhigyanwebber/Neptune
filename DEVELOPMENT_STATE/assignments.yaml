@@ -241,3 +241,43 @@ assignments:
       - registry modifications
       - new tool implementations
       - smarter/multi-signal completion policy (deferred to ADR-038's Validation section, pending a real Model Gateway)
+
+
+  - task_id: B-006-tool-execution-recovery-validation
+    worker_id: B
+    title: "Tool Execution Recovery Validation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Validation task -- no architecture redesign, no new persistence
+      layer, no RuntimeDriver/ToolExecutor redesign. Merged
+      worker/claude-a (Runtime/Driver/Checkpoint infra, A-001..A-005)
+      into worker/claude-b locally to prove, across a real two-process
+      boundary against live Postgres: Task -> Tool Call -> Tool
+      Executes (real EchoTool via B-004's ToolExecutorService) ->
+      Observation Recorded -> Runtime Stops -> Fresh Process Starts ->
+      Resume -> Continue Execution -> Final Answer, using persisted
+      state only. Added neptune/infrastructure/tools/
+      tool_port_adapter.py (ToolPortAdapter) as the minimal supporting
+      seam satisfying Core's ToolPort Protocol with Neptune's real
+      ToolExecutor -- no contract modified on either side (see
+      ADR-040). Added tests/integration/runtime/
+      test_tool_execution_recovery.py +
+      _tool_execution_recovery_script.py, extending A-005's existing
+      driver-recovery test pattern.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort (Claude A's contract, also untouched)
+    runtime_modified: false
+    registry_modified: false
+    new_tools: false
+    adr:
+      - "ADR-040-toolport-attribution-seam.md"
+    tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."

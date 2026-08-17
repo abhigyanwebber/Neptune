@@ -396,3 +396,44 @@ decisions:
       exists at whatever point execution stops, so resume always has
       something to resume from.
     status: recorded
+
+
+  - id: B-DEC-017
+    task_id: B-006-tool-execution-recovery-validation
+    decision: >
+      Merged origin/worker/claude-a into worker/claude-b locally
+      (commit b4fb5a1) -- required because B-006's required proof
+      needs Runtime/Driver/Checkpoint code (Claude A's lane) and
+      Tool Execution code (Claude B's lane, B-004) to run in the same
+      process, and the two branches had never been integrated despite
+      both being individually complete. worker/claude-a itself was
+      not modified or pushed to. No source-code merge conflicts
+      (non-overlapping package roots: src/core|application|
+      infrastructure|config for A, src/neptune/* for B) -- conflicts
+      were confined to shared coordination files (.gitignore,
+      DEVELOPMENT_STATE/*.yaml, tests/conftest.py) and resolved by
+      union/concatenation, since both sides' entries are independently
+      namespaced with no overlapping keys.
+      Found and fixed during resolution: both branches independently
+      created an ADR numbered 037 with unrelated content. Renamed
+      Claude B's to ADR-039 (next free number after A's ADR-038);
+      fixed every reference. Full combined suite verified green
+      post-merge: 111 passed, 4 skipped, before B-006's own new test
+      was added.
+    reversible: true
+    note: "Process/coordination finding, not an architecture decision -- flagging for director review of the two-agent methodology's cross-branch integration cadence."
+
+  - id: B-DEC-018
+    task_id: B-006-tool-execution-recovery-validation
+    decision: >
+      Built ToolPortAdapter (neptune/infrastructure/tools/
+      tool_port_adapter.py) to bridge Core's opaque, attribution-free
+      ToolPort.execute(dict) -> dict to Neptune's own ToolCall/
+      ToolResult, which require task_id/session_id/turn_id per
+      TOOL_CONTRACT invariant 2. Neither contract was changed; the
+      adapter absorbs the gap entirely on Neptune's side. turn_id has
+      no Core-side equivalent to pass through, so a clearly-labeled
+      placeholder ("{session_id}-pending-turn") is used -- it carries
+      no functional meaning on either side. Full rationale and
+      consequences in 05_DECISIONS/ADR-040-toolport-attribution-seam.md.
+    reversible: true
