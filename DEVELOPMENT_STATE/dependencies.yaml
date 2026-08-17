@@ -1,4 +1,16 @@
 dependencies:
+  - task_id: B-001-model-gateway-foundation
+    depends_on: []
+    note: >
+      Deliberately buildable against frozen contracts alone; no
+      dependency on Claude A's Stage 0/1 repositories.
+    blocks:
+      - "future: live single-provider vertical slice (needs
+         GROQ_API_KEY provisioning + director authorization)"
+      - "future: A's end-to-end task/session/turn -> Gateway wiring
+         (needs A's task/session identifiers to be real, not just
+         strings, once Stage 1 lands)"
+
   - task_id: NEPTUNE-A-STAGE0-1-CORE
     depends_on: []
     note: "No dependency on Claude B's work; Core lane starts independently per 14_DEVELOPMENT_ORCHESTRATION/03_WORK_ALLOCATION.md."
@@ -169,3 +181,12 @@ dependencies:
       future task may want a PlanStep's capability_id to inform which
       Turn/tool_call gets requested, but that wiring doesn't exist yet and
       wasn't in scope for A-007.
+  - task_id: B-006-tool-execution-recovery-validation
+    depends_on:
+      - NEPTUNE-A-005-RUNTIME-DRIVER
+      - B-004-tool-execution-boundary
+    note: >
+      Requires both branches merged locally to exist in the same
+      workspace (see B-DEC-017). Satisfies NEPTUNE-B-TOOL-LAYER-IMPL
+      above by providing a real ToolPort implementation wrapping
+      ToolExecutorService/EchoTool.

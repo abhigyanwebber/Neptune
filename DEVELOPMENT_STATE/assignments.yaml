@@ -1,4 +1,151 @@
 assignments:
+  - task_id: B-001-model-gateway-foundation
+    worker_id: B
+    title: "Model Gateway Foundation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Normalized Gateway request/response structures, provider-adapter
+      interface, initial model/provider registry structure,
+      Gateway/provider boundary enforcement, reference-provider
+      adapter scaffold, contract-compliance tests. No live provider
+      call authorized in this task.
+    contracts_implemented:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+    contracts_not_modified:
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+
+
+  - task_id: B-002-integration-candidate-evaluation
+    worker_id: B
+    title: "Integration Candidate Evaluation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Evaluation only, no implementation. Verified catalog of provider,
+      tool-layer, sandbox, and MCP integration candidates. Produced
+      04_RESEARCH/{provider,tool,sandbox,mcp}_candidates.md and
+      06_REGISTRIES/integration_registry.yaml with a recommended_stack.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    adapters_written: false
+
+
+  - task_id: B-003-first-real-provider-integration
+    worker_id: B
+    title: "First Real Provider Integration"
+    status: complete
+    authorized_by: director
+    scope: >
+      Converted GroqAdapter scaffold to a live implementation using
+      real HTTPS requests (requests library, no provider SDK/litellm
+      dependency), externalized config (GroqConfig.from_env(), no
+      hardcoded secrets), full HTTP error-type mapping, mocked
+      failure-mode tests (invalid key, unavailable model, timeout,
+      rate limit, connection error, server error), a Runtime stand-in
+      script and a gated live e2e test suite driving the request
+      through ModelGatewayService/CapabilityRouter (not direct
+      adapter invocation), and a capability-registration probe script.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    blocker: null
+    resolution: >
+      Live GROQ_API_KEY provided by human operator on 2026-08-15 for
+      one-time in-memory use only (not persisted, not committed, not
+      written to any file). Live smoke test and live e2e test suite
+      (3 tests) both passed against a real Groq model. A real bug was
+      found and fixed during validation: ModelRegistry.candidates_for
+      was passing the registry's internal entry key
+      (e.g. "groq-llama-3.3-70b-versatile") as the provider-facing
+      model_id instead of the actual Groq model name
+      ("llama-3.3-70b-versatile"), causing a 404 from Groq. Fixed in
+      src/neptune/infrastructure/models/registry.py (one-line change,
+      RoutingCandidate.model_id now sources from ModelRecord.model,
+      not ModelRecord.id). Corresponding test assertions updated in
+      tests/test_registry.py. Full suite: 25 passed (22 always-run +
+      3 live, live tests skip automatically when no key is present).
+    unblock_action: null
+
+
+  - task_id: B-004-tool-execution-boundary
+    worker_id: B
+    title: "Tool Execution Boundary"
+    status: complete
+    authorized_by: director
+    scope: >
+      Implemented the Tool Execution boundary per TOOL_CONTRACT:
+      core/contracts/tool_execution.py (ToolCall, ToolResult,
+      ToolOutcome, Tool/ToolRegistry/ToolExecutor Protocols,
+      ToolNotFoundError/ToolInputError) and
+      infrastructure/tools/{echo_tool,registry_adapter,executor}.py
+      (EchoTool, ToolRegistryAdapter, ToolExecutorService with
+      timeout + output-size enforcement). No MCP, browser, shell, or
+      sandbox work; no new providers; no permission-decision logic
+      (explicitly TOOL_CONTRACT's non-responsibility, deferred to a
+      future PERMISSION_CONTRACT task).
+    contracts_implemented:
+      - TOOL_CONTRACT
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    tests: "35 passed, 4 skipped (live-credential tests, unrelated to this task's stop condition -- satisfied via MockProviderAdapter per task's explicit allowance)"
+
+
+  - task_id: B-005-observation-feedback-loop
+    worker_id: B
+    title: "Observation Feedback Loop"
+    status: complete
+    authorized_by: director
+    scope: >
+      Implemented src/neptune/application/observation_loop.py:
+      ObservationMessageBuilder (deterministic ToolResult ->
+      ContextMessage formatting, see ADR-039), ObservationProcessor
+      (executes ToolIntents via ToolExecutor, builds follow-up
+      ModelRequest), LoopResult, and run_observation_loop() driving
+      Model -> ToolIntent -> ToolExecution -> Observation -> Follow-up
+      Model Request to completion through existing ModelGateway/
+      ToolExecutor abstractions only. No provider-specific logic, no
+      new tools, no MCP, no sandboxing, no Runtime/Registry
+      modifications, no permissions layer.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+    runtime_modified: false
+    adr: "ADR-039-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge -- see B-DEC-017)"
+    tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"
+
   - task_id: NEPTUNE-A-STAGE0-1-CORE
     worker_id: A
     stage: "0-1"
@@ -132,3 +279,42 @@ assignments:
       - AI-generated plans (all test plans are hand-authored)
       - RuntimeDriver changes (src/core/runtime/driver.py untouched)
       - ToolExecutor changes (no ToolExecutor exists yet; not created here either)
+
+  - task_id: B-006-tool-execution-recovery-validation
+    worker_id: B
+    title: "Tool Execution Recovery Validation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Validation task -- no architecture redesign, no new persistence
+      layer, no RuntimeDriver/ToolExecutor redesign. Merged
+      worker/claude-a (Runtime/Driver/Checkpoint infra, A-001..A-005)
+      into worker/claude-b locally to prove, across a real two-process
+      boundary against live Postgres: Task -> Tool Call -> Tool
+      Executes (real EchoTool via B-004's ToolExecutorService) ->
+      Observation Recorded -> Runtime Stops -> Fresh Process Starts ->
+      Resume -> Continue Execution -> Final Answer, using persisted
+      state only. Added neptune/infrastructure/tools/
+      tool_port_adapter.py (ToolPortAdapter) as the minimal supporting
+      seam satisfying Core's ToolPort Protocol with Neptune's real
+      ToolExecutor -- no contract modified on either side (see
+      ADR-040). Added tests/integration/runtime/
+      test_tool_execution_recovery.py +
+      _tool_execution_recovery_script.py, extending A-005's existing
+      driver-recovery test pattern.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort (Claude A's contract, also untouched)
+    runtime_modified: false
+    registry_modified: false
+    new_tools: false
+    adr:
+      - "ADR-040-toolport-attribution-seam.md"
+    tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."

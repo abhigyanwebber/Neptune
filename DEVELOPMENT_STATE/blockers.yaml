@@ -1,1 +1,5 @@
 blockers: []
+# B-BLOCK-001 (GROQ_API_KEY unavailable) resolved 2026-08-15 -- key
+# provided by human operator, used in-memory only, live validation
+# completed successfully. See DEVELOPMENT_STATE/assignments.yaml
+# (B-003 resolution) and decisions.yaml (B-DEC-010) for detail.

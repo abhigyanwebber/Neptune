@@ -5,5 +5,17 @@ workers:
     current_task: NEPTUNE-A-007-PLANNING-LAYER
   - worker_id: B
     account_role: infrastructure-integration
-    status: not-started
+    status: idle
     current_task: null
+    completed_tasks:
+      - B-001-model-gateway-foundation
+      - B-002-integration-candidate-evaluation
+      - B-003-first-real-provider-integration
+      - B-004-tool-execution-boundary
+      - B-005-observation-feedback-loop
+      - B-006-tool-execution-recovery-validation
+    notes: >
+      worker/claude-a was merged locally into worker/claude-b at
+      commit b4fb5a1 for B-006. worker/claude-a itself is untouched;
+      this note is informational for whoever next reviews branch
+      state.

@@ -1,4 +1,219 @@
 decisions:
+  - id: B-DEC-001
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Selected Groq (llama-3.3-70b-versatile) as the first vertical-
+      slice provider candidate. Free tier, no card required,
+      OpenAI-compatible surface, tool calling supported. Not locked in
+      architecturally -- registered as ordinary data in
+      config/registries/*.yaml and accessed only through
+      ProviderAdapter.
+    alternatives_considered: "Gemini free lane, Cerebras, Mistral, OpenRouter :free (per R01 snapshot in MODEL_REGISTRY.md)"
+    reversible: true
+
+  - id: B-DEC-002
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Implemented ModelGatewayService.infer() to raise
+      ModelGatewayError(ModelError) on failure rather than returning a
+      ModelResult | ModelError union, per REFERENCE_INTERFACES.md's
+      note that exact syntax may vary. Keeps the happy-path type
+      unambiguous for callers.
+    reversible: true
+
+  - id: B-DEC-003
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      Router scoring left intentionally simple (capability match +
+      availability + cost-class ceiling + sticky/preferred provider,
+      then quota_remaining) since ROUTER_CONTRACT defers "exact
+      scoring formula, weighting, health algorithm" to implementation.
+      Lives in infrastructure/routing/, not core, so it can be
+      replaced without touching the frozen contract.
+    reversible: true
+
+  - id: B-DEC-004
+    task_id: B-001-model-gateway-foundation
+    decision: >
+      GroqAdapter imports litellm lazily inside invoke(), not at
+      module scope, so the module (and the full test suite) can be
+      imported/run without litellm installed. No live call was made;
+      GROQ_API_KEY is read only at invoke() time.
+    reversible: true
+
+
+  - id: B-DEC-005
+    task_id: B-002-integration-candidate-evaluation
+    decision: >
+      Recommended stack: provider primary=groq, fallback_chain=
+      [openrouter, cerebras, gemini, mistral]; tool_layer=pattern
+      reuse only (codex_cli, cline, openhands -- no candidate scored
+      "directly reusable"); sandbox primary=docker_local,
+      fallback=e2b; mcp primary=official protocol via fastmcp.
+      Full justification in 06_REGISTRIES/integration_registry.yaml
+      recommended_stack block.
+    reversible: true
+
+  - id: B-DEC-006
+    task_id: B-002-integration-candidate-evaluation
+    decision: >
+      Flagged two upstream status changes materially affecting the
+      Bible's original candidate assumptions: Roo Code archived
+      May 2026 (no longer a live dependency target -- pattern only),
+      and Daytona's self-host story downgraded after its open-source
+      repo reportedly stopped accepting contributions ~June 2026.
+      Gemini CLI is also being retired June 18 2026. None of these
+      required a contract change; recorded as research findings.
+    reversible: false
+    note: "Factual finding, not a design choice -- recorded for traceability."
+
+
+  - id: B-DEC-007
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Implemented GroqAdapter with `requests` making direct HTTPS
+      calls to Groq's OpenAI-compatible REST endpoint, not LiteLLM.
+      litellm is still not installed in this environment, and the
+      task explicitly required "Real HTTPS requests" with "no provider
+      SDK leakage" -- a direct requests-based implementation is
+      simpler to test (precise control over mocked HTTP status codes
+      for the failure-validation matrix) and has one fewer dependency.
+      ADR-032's LiteLLM boundary is not violated: LiteLLM remains the
+      recommended normalization transport at the architecture level,
+      this is an implementation-detail substitution for one adapter,
+      fully reversible.
+    reversible: true
+
+  - id: B-DEC-008
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Built scripts/run_live_groq_smoke_test.py as a Runtime stand-in
+      rather than waiting on Claude A's Stage 0/1 Task/Session/Turn
+      objects, so the request still "originates through Neptune
+      contracts, not direct adapter invocation" as required. It
+      constructs a ModelRequest with placeholder task/session/turn id
+      strings and drives ModelGatewayService.infer() -- the same path
+      a real Runtime will use once A's Stage 1 lands. Documented
+      explicitly as a stand-in, not a competing implementation of A's
+      domain (per B-001/B-002 dependency notes).
+    reversible: true
+
+  - id: B-DEC-009
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Registry updates from live capability discovery are not
+      auto-written by code. scripts/probe_groq_models.py fetches the
+      live model list and prints it for human review; a person then
+      updates config/registries/model_registry.yaml by hand. This
+      matches the existing registry discipline (snapshots require
+      revalidation, not silent overwrite) established in B-001/B-002.
+    reversible: true
+
+
+  - id: B-DEC-010
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Live validation completed and B-003 closed. Human operator
+      supplied GROQ_API_KEY for one-time in-memory use in a single
+      terminal session ($env:GROQ_API_KEY set per-process, never
+      via setx/System Properties, never written to .env or any repo
+      file). Confirmed via literal-string repository search
+      (0 matches) that the key does not appear anywhere in the
+      working tree. The key was not retained after validation; this
+      worker holds no copy of it.
+    reversible: false
+    note: "Factual record of a validation event and its handling, not a design choice."
+
+  - id: B-DEC-011
+    task_id: B-003-first-real-provider-integration
+    decision: >
+      Fixed a real bug surfaced only by the live call: registry.py's
+      candidates_for() populated RoutingCandidate.model_id from
+      ModelRecord.id (the registry's internal key, e.g.
+      "groq-llama-3.3-70b-versatile") instead of ModelRecord.model
+      (the provider's actual model name, "llama-3.3-70b-versatile").
+      Every mocked/unit test passed regardless, because none of them
+      exercised the real registry against a real provider -- this is
+      exactly the class of bug B-003 exists to catch. One-line fix,
+      contracts unchanged, RoutingCandidate/ModelRecord schemas
+      unchanged. Updated the two assertions in test_registry.py that
+      depended on the old (incorrect) value.
+    reversible: true
+
+
+  - id: B-DEC-012
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      Implemented core/contracts/tool_execution.py to give TOOL_CONTRACT
+      a concrete shape, same pattern as B-001's treatment of
+      MODEL_CONTRACT/PROVIDER_CONTRACT/ROUTER_CONTRACT: this is
+      implementing the frozen contract, not modifying it. ToolCall/
+      ToolResult reuse ToolDefinition from model_gateway.py rather than
+      duplicating it, per "use contracts already defined by Core."
+    reversible: true
+
+  - id: B-DEC-013
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      ToolExecutor.execute() never raises for tool-level failures
+      (missing tool, invalid input, timeout, oversized output, or even
+      an unrelated unhandled exception inside a tool) -- all are
+      normalized into ToolResult(outcome=...). This directly implements
+      TOOL_CONTRACT's "return structured success/error information"
+      responsibility and invariant 1 (tool existence/lookup failure is
+      data, not a control-flow event the Runtime must catch specially).
+      Timeout enforced via ThreadPoolExecutor.result(timeout=...);
+      output-size enforced via a JSON-serialized byte-length check.
+      Both defaults (10s, 32000 bytes) are implementation-level, per
+      TOOL_CONTRACT's explicit deferral of "timeout defaults."
+    reversible: true
+
+  - id: B-DEC-014
+    task_id: B-004-tool-execution-boundary
+    decision: >
+      No permission/authorization check was added anywhere in the
+      executor path -- TOOL_CONTRACT explicitly lists "deciding whether
+      the agent is authorized" as a non-responsibility, and B-004's
+      scope did not include PERMISSION_CONTRACT. ToolExecutor executes
+      any ToolCall handed to it; a future task must insert the
+      authorization decision before execute() is called (Runtime's
+      job, not the executor's).
+    reversible: true
+    note: "Scope boundary, not a design preference -- flagging for the next task's context."
+
+
+  - id: B-DEC-015
+    task_id: B-005-observation-feedback-loop
+    decision: >
+      Observation format fixed as a single role="tool" ContextMessage
+      with a deterministic natural-language template (sorted-key JSON
+      for success, "failed (outcome): message" for failure). Full
+      rationale and consequences recorded in
+      05_DECISIONS/ADR-039-observation-feedback-format.md (renumbered
+      from ADR-037 during B-006 -- see B-DEC-017) rather than
+      only here, since this is a format decision future tasks need to
+      find without reading DEVELOPMENT_STATE history.
+    reversible: true
+
+  - id: B-DEC-016
+    task_id: B-005-observation-feedback-loop
+    decision: >
+      Modified MockProviderAdapter (infrastructure/providers/
+      reference_adapter.py) to support a two-turn scenario: it now
+      checks for a prior role="tool" message in request.messages and,
+      if present, stops emitting tool_intents and returns a final
+      answer referencing the observation content instead. Also changed
+      its canned tool call from arguments={} to
+      arguments={"text": "hello"}, since {} correctly fails EchoTool's
+      input validation and every existing test happened to bypass
+      intent.arguments by constructing its own ToolCall by hand.
+      This is a test-double enhancement, not a new tool and not
+      provider-specific logic in observation_loop.py itself -- the
+      loop only ever calls the ModelGateway/ToolExecutor Protocols.
+      Verified no regressions: full suite still passes (48 passed, 4
+      skipped) after the change.
+    reversible: true
+
   - id: ADR-A-001
     made_by: claude-a
     title: "Accept reference stack for Stage 0/1: Python + SQLAlchemy 2.0 + PostgreSQL"
@@ -220,3 +435,43 @@ decisions:
       unchanged (A-003) rather than a new implementation.
     status: recorded
 
+
+  - id: B-DEC-017
+    task_id: B-006-tool-execution-recovery-validation
+    decision: >
+      Merged origin/worker/claude-a into worker/claude-b locally
+      (commit b4fb5a1) -- required because B-006's required proof
+      needs Runtime/Driver/Checkpoint code (Claude A's lane) and
+      Tool Execution code (Claude B's lane, B-004) to run in the same
+      process, and the two branches had never been integrated despite
+      both being individually complete. worker/claude-a itself was
+      not modified or pushed to. No source-code merge conflicts
+      (non-overlapping package roots: src/core|application|
+      infrastructure|config for A, src/neptune/* for B) -- conflicts
+      were confined to shared coordination files (.gitignore,
+      DEVELOPMENT_STATE/*.yaml, tests/conftest.py) and resolved by
+      union/concatenation, since both sides' entries are independently
+      namespaced with no overlapping keys.
+      Found and fixed during resolution: both branches independently
+      created an ADR numbered 037 with unrelated content. Renamed
+      Claude B's to ADR-039 (next free number after A's ADR-038);
+      fixed every reference. Full combined suite verified green
+      post-merge: 111 passed, 4 skipped, before B-006's own new test
+      was added.
+    reversible: true
+    note: "Process/coordination finding, not an architecture decision -- flagging for director review of the two-agent methodology's cross-branch integration cadence."
+
+  - id: B-DEC-018
+    task_id: B-006-tool-execution-recovery-validation
+    decision: >
+      Built ToolPortAdapter (neptune/infrastructure/tools/
+      tool_port_adapter.py) to bridge Core's opaque, attribution-free
+      ToolPort.execute(dict) -> dict to Neptune's own ToolCall/
+      ToolResult, which require task_id/session_id/turn_id per
+      TOOL_CONTRACT invariant 2. Neither contract was changed; the
+      adapter absorbs the gap entirely on Neptune's side. turn_id has
+      no Core-side equivalent to pass through, so a clearly-labeled
+      placeholder ("{session_id}-pending-turn") is used -- it carries
+      no functional meaning on either side. Full rationale and
+      consequences in 05_DECISIONS/ADR-040-toolport-attribution-seam.md.
+    reversible: true

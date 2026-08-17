@@ -1,0 +1,232 @@
+# Integration Registry — B-002 Integration Candidate Evaluation
+#
+# Machine-readable companion to 04_RESEARCH/{provider,tool,sandbox,mcp}_candidates.md.
+# Evaluation only. No adapters implemented, no runtime modified.
+# All entries are snapshots (verified_at) and require revalidation
+# before production use, per the same discipline as MODEL_REGISTRY.md.
+
+verified_at: "2026-08-13"
+task_id: B-002-integration-candidate-evaluation
+
+providers:
+  - id: groq
+    api_compatibility: openai_compatible
+    free_tier: true
+    card_required: false
+    tool_calling: true
+    streaming: true
+    pricing: "free tier + paid per-token tier"
+    rate_limits: "~30 RPM / ~6000 TPM / ~1000-14400 RPD (model-dependent, sources vary)"
+    sdk_maturity: high
+    fallback_rank: 1
+    notes: "Existing B-001 vertical-slice candidate. No change."
+
+  - id: openrouter
+    api_compatibility: openai_compatible
+    free_tier: true
+    card_required: false
+    tool_calling: "subset of free models; openrouter/free router can filter for it"
+    streaming: true
+    pricing: "$0 :free models, BYOK mode, paid pay-as-you-go"
+    rate_limits: "~20 RPM; daily cap volatile (50-1000/day depending on source and spend history)"
+    sdk_maturity: high
+    fallback_rank: 2
+    notes: "Free-model roster rotates; target the openrouter/free capability router, not a pinned model id."
+
+  - id: gemini
+    api_compatibility: native_plus_partial_openai_shim
+    free_tier: true
+    card_required: false
+    tool_calling: true
+    streaming: true
+    pricing: "free tier (Flash/Flash-Lite) + paid tiers; billing enablement removes free tier for the project"
+    rate_limits: "~5-15 RPM, ~250K-1M TPM, ~100-1000 RPD; Dec 2025 quota reduction reported; Pro free tier reportedly removed Apr 2026"
+    sdk_maturity: high
+    fallback_rank: 4
+    notes: "Highest policy volatility of the five. Re-verify before relying on it."
+
+  - id: cerebras
+    api_compatibility: openai_compatible
+    free_tier: true
+    card_required: false
+    tool_calling: true
+    streaming: "varies by model per one source"
+    pricing: "free tier + paid Developer tier (removes caps)"
+    rate_limits: "conflicting sources: 5 RPM/30K TPM/1M TPD/8K ctx vs 15 RPM/30K TPM/1M TPD/128K ctx"
+    sdk_maturity: high
+    fallback_rank: 3
+    notes: "Fastest raw inference of the five; free-tier RPM too tight for sustained agent loops, good for short bursty calls."
+
+  - id: mistral
+    api_compatibility: native_plus_openai_endpoint_option
+    free_tier: true
+    card_required: false
+    tool_calling: true
+    streaming: true
+    pricing: "free Experiment tier + pay-as-you-go (card) + Enterprise"
+    rate_limits: "unpublished; ~1B tokens/month reported by some sources, unverified against primary docs"
+    sdk_maturity: high
+    fallback_rank: 5
+    notes: "EU data residency differentiator. Rate limit only fully verifiable from a live Admin Console."
+
+tool_layers:
+  - id: openhands
+    license: MIT
+    status: active
+    classification: B
+    notes: "SDK-first agent/runtime split maps well onto Neptune's Agent/Harness + Sandbox boundary. Reference for tool execution + sandbox integration; permission model not reused verbatim."
+
+  - id: aider
+    license: Apache-2.0
+    status: active
+    classification: "B (narrow: git-native diff/commit tool pattern) / C (rest)"
+    notes: "Already uses LiteLLM internally. Narrow, single-purpose by design -- reference for one tool implementation, not a harness candidate."
+
+  - id: cline
+    license: "Apache-2.0 core; JetBrains plugin closed-source"
+    status: active
+    classification: B
+    notes: "Plan/Act approval-gate model is the closest philosophical match to PERMISSION_CONTRACT surveyed. Built-in MCP marketplace relevant to MCP evaluation. IDE surface itself out of scope."
+
+  - id: roo_code
+    license: "Apache-2.0-family (Cline fork)"
+    status: archived_2026_05
+    classification: C
+    notes: "No live upstream. Multi-agent 'modes' pattern (Architect/Code/Debug/Custom) worth studying for later multi-agent work; do not add as a dependency."
+
+  - id: goose
+    license: Apache-2.0
+    status: "active, Linux Foundation / Agentic AI Foundation governance"
+    classification: B
+    notes: "Broader-than-coding scope maps onto Neptune's longer-term ambition. Foundation governance lowers long-term dependency risk if adopted later."
+
+  - id: codex_cli
+    license: Apache-2.0
+    status: "active, very high release cadence"
+    classification: "B (sandbox_mode/approval_policy separation pattern) / C (rest)"
+    notes: "Rust core cleanly separates sandbox isolation from approval policy -- closest reference to Neptune's own Sandbox/Permission contract split. Tightly coupled to OpenAI account/billing model otherwise."
+
+  - id: gemini_cli
+    license: unknown
+    status: retiring_2026_06_18
+    classification: D
+    notes: "Being retired for a closed-source successor. Not pursued further."
+
+sandboxes:
+  - id: docker_local
+    cost: "$0 beyond host compute"
+    isolation: "namespace/cgroup (moderate, hardenable)"
+    self_hostable: true
+    free_tier: "n/a (not a hosted product)"
+    complexity: low
+    zero_baseline_fit: true
+    notes: "Genuine $0-baseline sandbox and the isolation-cost reference point for every managed option."
+
+  - id: e2b
+    cost: "~$0.0504/vCPU-hr, ~$0.0162/GiB-hr; Hobby = one-time $100 credit; Pro = $150/mo floor"
+    isolation: "Firecracker microVM (strongest surveyed)"
+    self_hostable: true
+    self_hostable_notes: "Apache-2.0, self-hostable with real ops effort"
+    free_tier: "one-time credit -- burst capital, not recurring"
+    complexity: low
+    zero_baseline_fit: false
+    notes: "Best isolation-per-integration-effort of the managed options. Not a $0-baseline component on its own."
+
+  - id: daytona
+    cost: "pay-as-you-go per second from a reported $200 free compute credit"
+    isolation: "container by default; optional Kata/Sysbox for stronger isolation"
+    self_hostable: false
+    self_hostable_notes: "DOWNGRADED: multiple sources report the open-source repo stopped accepting outside contributions ~June 2026; core dev moved private"
+    free_tier: "one-time credit -- burst capital"
+    complexity: low
+    zero_baseline_fit: false
+    notes: "Self-host story no longer holds as of this snapshot; re-evaluate if upstream status changes."
+
+  - id: modal
+    cost: "serverless per-second, competitive on pure CPU"
+    isolation: "managed; standout feature is GPU-in-sandbox, not isolation strength per se"
+    self_hostable: false
+    free_tier: "not clearly documented as no-card free in sources gathered"
+    complexity: low
+    zero_baseline_fit: false
+    notes: "Only option surveyed with GPU-in-sandbox. Out of scope for Neptune's current text/tool-call execution needs."
+
+  - id: local_execution
+    cost: "$0"
+    isolation: "none beyond OS user permissions"
+    self_hostable: true
+    free_tier: "n/a"
+    complexity: lowest
+    zero_baseline_fit: true
+    notes: "Appropriate only for fully trusted calls (Neptune's own CI/dev loop), not untrusted agent-generated commands."
+
+mcp:
+  - id: official_mcp_protocol
+    stability: "high; Linux Foundation-governed (AAIF, Dec 2025); 2026-07-28 spec shipped with conformance suite and SDK tier system"
+    adoption: "97M+ monthly SDK downloads, 1B+ total per SDK; OpenAI/Google/Microsoft/AWS adoption; 10K+ active public servers (Anthropic count), 10-20K in registry/GitHub-topic counts depending on methodology; 41% of surveyed orgs in production use per one enterprise survey"
+    adapter_complexity: low
+    notes: "Correct integration target for Neptune's TOOL_CONTRACT-facing MCP client/server work."
+
+  - id: fastmcp
+    stability: "tracks official Python SDK"
+    adoption: "high within Python MCP-server-building community; reference pattern in most 2026 guides surveyed"
+    adapter_complexity: low
+    notes: "Correct default for any MCP server Neptune builds in-house; matches Neptune's Python implementation language."
+
+  - id: open_mcp_ecosystem
+    stability: "variable per-server; protocol layer stable, individual servers carry normal OSS risk"
+    adoption: "large in aggregate, concentrated in a handful of high-quality infra-vendor servers"
+    adapter_complexity: "low to wire in, non-trivial to vet per server"
+    notes: "Treat as a tool supply to evaluate case-by-case through PERMISSION_CONTRACT, not a blanket-trusted tier."
+
+recommended_stack:
+  provider:
+    primary: groq
+    fallback_chain: [openrouter, cerebras, gemini, mistral]
+    justification: >
+      Groq confirmed as-is from B-001: OpenAI-compatible, no card,
+      tool calling, already scaffolded. OpenRouter next for its
+      multi-provider free pool (natural fallback breadth via
+      openrouter/free capability routing, not a pinned model id).
+      Cerebras third for latency-sensitive bursts despite its tight
+      free RPM. Gemini and Mistral last in the free-tier chain due to
+      documented policy volatility (Gemini) and undocumented exact
+      limits (Mistral) respectively -- still viable, just least
+      certain to verify without a live key.
+  tool_layer:
+    pattern_sources: [codex_cli, cline, openhands]
+    directly_adopted: []
+    justification: >
+      No candidate is directly reusable (classification A) -- every
+      one is a complete end-user product, not an embeddable library.
+      Neptune's actual reuse is architectural: Codex CLI's
+      sandbox_mode/approval_policy separation as the closest reference
+      for SANDBOX_CONTRACT/PERMISSION_CONTRACT, Cline's Plan/Act
+      approval-gate as the closest reference for permission UX
+      semantics, and OpenHands' SDK-first agent/runtime split as the
+      closest reference for the Tool/Sandbox execution boundary.
+      Aider and Goose remain secondary references (git-native tool
+      pattern; broader-than-coding task scope, respectively).
+  sandbox:
+    primary: docker_local
+    fallback: e2b
+    justification: >
+      Docker/local execution is the only option that is a genuine
+      recurring $0 baseline, matching Neptune's stated economic
+      objective. E2B is the fallback for workloads that need stronger
+      (microVM) isolation than Docker provides, accepting its free
+      tier is burst capital rather than a baseline. Daytona is
+      explicitly not recommended as a self-hosted fallback in this
+      snapshot given its reported closed-source shift; Modal is out of
+      scope until Neptune needs GPU-in-sandbox execution.
+  mcp:
+    primary: official_mcp_protocol
+    server_sdk: fastmcp
+    justification: >
+      The protocol itself, via its official Python SDK (FastMCP), is
+      infrastructure-grade at this point -- multi-vendor governance,
+      very high adoption, low adapter complexity, and it directly
+      matches Neptune's Python implementation language. Third-party
+      servers from the open ecosystem are treated as a case-by-case
+      tool supply through the existing Permission boundary, not as a
+      separate recommended dependency.

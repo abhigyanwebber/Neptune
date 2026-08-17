@@ -42,5 +42,10 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-033 — One provider before multi-provider resilience
 - ADR-034 — $0 baseline as release gate
 - ADR-035 — Two-agent Neptune development methodology
+- ADR-036 — Isolated agent workspaces
+- ADR-037 — Core Runtime open-source evaluation
+- ADR-038 — Runtime Driver policy
+- ADR-039 — Observation feedback format
+- ADR-040 — ToolPort attribution seam (B-006 finding)
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.
