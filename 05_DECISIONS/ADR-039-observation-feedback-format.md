@@ -1,4 +1,4 @@
-# ADR-037 — Observation Feedback Format
+# ADR-039 — Observation Feedback Format
 
 **Status:** PROPOSED
 
@@ -81,3 +81,12 @@ message format requires more structure than a single free-text
 `ContextMessage` (e.g. explicit `tool_call_id` linkage), or if
 multiple tool calls per turn need to be distinguished in a way plain
 sequential text messages cannot express.
+
+## Renumbering note
+Originally filed as ADR-037. Renamed to ADR-039 during B-006's
+worker/claude-a merge, since Claude A had independently claimed
+ADR-037 (core-runtime-open-source-evaluation.md) and ADR-038
+(runtime-driver-policy.md) on the unmerged branch -- a real number
+collision discovered only because this merge finally brought both
+ADR sequences into the same working tree. No content changed besides
+the number and this note.

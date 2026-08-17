@@ -1,8 +1,8 @@
 workers:
   - worker_id: A
     account_role: core-control-plane
-    status: not-started
-    current_task: null
+    status: active
+    current_task: NEPTUNE-A-005-RUNTIME-DRIVER
   - worker_id: B
     account_role: infrastructure-integration
     status: idle

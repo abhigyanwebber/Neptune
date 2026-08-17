@@ -125,7 +125,7 @@ assignments:
     scope: >
       Implemented src/neptune/application/observation_loop.py:
       ObservationMessageBuilder (deterministic ToolResult ->
-      ContextMessage formatting, see ADR-037), ObservationProcessor
+      ContextMessage formatting, see ADR-039), ObservationProcessor
       (executes ToolIntents via ToolExecutor, builds follow-up
       ModelRequest), LoopResult, and run_observation_loop() driving
       Model -> ToolIntent -> ToolExecution -> Observation -> Follow-up
@@ -143,5 +143,101 @@ assignments:
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
-    adr: "ADR-037-observation-feedback-format.md"
+    adr: "ADR-039-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge -- see B-DEC-017)"
     tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"
+
+  - task_id: NEPTUNE-A-STAGE0-1-CORE
+    worker_id: A
+    stage: "0-1"
+    title: "Core domain foundation: Task/Agent/Session/Turn/Event/Checkpoint + Postgres persistence + recovery test"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/domain (Task, Agent, Session, Turn, Event, Checkpoint)
+      - src/core/contracts (repository Protocols)
+      - src/infrastructure/persistence (SQLAlchemy ORM models + repositories)
+      - src/config (database URL settings)
+      - docker-compose.yml (local Postgres for dev/test)
+      - tests/unit, tests/contract, tests/integration
+    out_of_scope:
+      - Model Gateway
+      - provider integrations
+      - tool system / sandboxing
+      - MCP integrations
+      - multi-agent execution
+
+  - task_id: NEPTUNE-A-RUNTIME-STAGE2-CORE
+    worker_id: A
+    stage: "2"
+    title: "Core Agent Runtime / Execution Control: Task -> Agent Run -> Session -> Context -> Model Request -> Tool Request -> Observation -> Event -> Checkpoint -> Continue/Complete/Recover"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/contracts/gateway.py (ModelGatewayPort)
+      - src/core/contracts/tools.py (ToolPort)
+      - src/core/runtime/ (AgentRuntime engine, context assembly, fakes, errors)
+      - 05_DECISIONS/ADR-037 (open-source harness integration evaluation)
+      - tests/unit/runtime, tests/integration/runtime
+    out_of_scope:
+      - Model Gateway implementation
+      - provider adapters / routing
+      - tool executors / sandbox / MCP
+      - full context/repository indexing
+      - multi-agent orchestration
+      - Alembic migrations (explicitly deferred by director)
+
+  - task_id: NEPTUNE-A-003-REGISTRY
+    worker_id: A
+    stage: "registry"
+    title: "Resource Registry and Capability Registry system: Capability/Provider/Resource/Tool catalogs + dependency resolution"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/contracts/registry.py (CapabilityRepository, ProviderRepository, ResourceRepository, ToolDefinitionRepository Protocols)
+      - src/core/registry/ (capability_registry.py, provider_registry.py, resource_registry.py, tool_registry.py, dependency_resolution.py)
+      - src/infrastructure/persistence (registry ORM models + SQLAlchemy repositories)
+      - tests/unit/registry, tests/integration/registry
+    out_of_scope:
+      - tool execution
+      - provider execution
+      - MCP execution
+      - sandbox
+      - Router implementation (registries only expose the lookups a future Router will use)
+
+  - task_id: NEPTUNE-A-004-REGISTRY-POPULATION
+    worker_id: A
+    stage: "registry-population"
+    title: "Registry Population and Verification System: loader, verification metadata, snapshot export, audit trail, verified provider catalog"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/registry/registry_loader.py (YAML -> registry upsert, tolerant of unknown fields/missing files)
+      - src/core/registry/registry_exporter.py (full registry state -> JSON snapshot)
+      - src/core/registry/audit.py (registry mutations -> Event, reusing existing Event infrastructure)
+      - verification_source/verification_status/last_checked fields added to Capability/Provider/Resource/ToolDefinition (additive, backward-compatible)
+      - KNOWN_PROVIDERS extended with ollama, openai_compatible (director-directed vocabulary expansion)
+      - 06_REGISTRIES/data/*.yaml (capabilities.yaml, providers.yaml, resources.yaml, tools.yaml seed data; providers.yaml entries carry a verification_source URL per director's "only verified facts" instruction)
+      - Bugfix: removed incorrect ForeignKey(tasks.task_id) constraint on EventModel.task_id (see ADR-A-010)
+      - tests/unit/registry (loader, exporter, audit), tests/integration/registry (population recovery)
+    out_of_scope:
+      - runtime/agent-loop changes
+      - tool execution
+      - Model Gateway
+      - Alembic (schema changes in this task required a local dev volume reset instead; flagged as a limitation, not resolved)
+
+  - task_id: NEPTUNE-A-005-RUNTIME-DRIVER
+    worker_id: A
+    stage: "runtime-driver"
+    title: "Runtime Driver Layer: RuntimeDriver orchestrates repeated AgentRuntime.run_turn() calls -- continue/complete/stop policy"
+    status: completed
+    branch: worker/claude-a
+    scope:
+      - src/core/runtime/driver.py (RuntimeDriver, DriverConfig, DriverResult, DriverOutcome)
+      - 05_DECISIONS/ADR-038 (driver execution policy rationale)
+      - tests/unit/runtime/test_driver.py (completion, tool-call continuation, max-round termination, failed-tool paths)
+      - tests/integration/runtime/test_driver_recovery.py (two-OS-process checkpoint + resume across a driver-level restart)
+    out_of_scope:
+      - model adapter changes (engine.py's ModelGatewayPort/ToolPort untouched)
+      - registry modifications
+      - new tool implementations
+      - smarter/multi-signal completion policy (deferred to ADR-038's Validation section, pending a real Model Gateway)

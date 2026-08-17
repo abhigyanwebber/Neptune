@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: neptune-postgres
+    environment:
+      POSTGRES_USER: neptune
+      POSTGRES_PASSWORD: neptune
+      POSTGRES_DB: neptune
+    ports:
+      # Non-default host port (5433) to avoid clashing with any local
+      # Postgres install already using 5432.
+      - "5433:5432"
+    volumes:
+      - neptune_pg_data:/var/lib/postgresql/data
+
+volumes:
+  neptune_pg_data:

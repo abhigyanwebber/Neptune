@@ -10,3 +10,123 @@ dependencies:
       - "future: A's end-to-end task/session/turn -> Gateway wiring
          (needs A's task/session identifiers to be real, not just
          strings, once Stage 1 lands)"
+
+  - task_id: NEPTUNE-A-STAGE0-1-CORE
+    depends_on: []
+    note: "No dependency on Claude B's work; Core lane starts independently per 14_DEVELOPMENT_ORCHESTRATION/03_WORK_ALLOCATION.md."
+  - task_id: NEPTUNE-B-MODEL-GATEWAY
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: >
+      Model Gateway / tool execution (Claude B, later stage) will read the
+      Task/Session/Event/Checkpoint contracts in src/core/contracts and
+      write Turns/Events through those repository interfaces. This entry
+      documents the integration point, not an active B task yet.
+
+  - task_id: NEPTUNE-A-RUNTIME-STAGE2-CORE
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: "Runtime engine consumes the Stage 0/1 repository contracts directly; no new persistence work required."
+
+  - task_id: NEPTUNE-B-MODEL-GATEWAY-IMPL
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      Claude B's real Model Gateway must satisfy core.contracts.gateway.ModelGatewayPort
+      (.send(request: dict) -> dict). AgentRuntime currently runs against
+      core.runtime.fakes.FakeModelGateway for tests/dev; swapping in B's real
+      implementation requires no Core code changes, only a different object
+      passed into AgentRuntime's constructor.
+
+  - task_id: NEPTUNE-B-TOOL-LAYER-IMPL
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      Claude B's real Tool/Permission/sandbox layer must satisfy
+      core.contracts.tools.ToolPort (.execute(tool_call: dict) -> dict).
+      Same swap-in relationship as the Model Gateway above.
+
+  - task_id: NEPTUNE-A-003-REGISTRY
+    depends_on:
+      - NEPTUNE-A-STAGE0-1-CORE
+    note: "Registry follows the same repository-contract + SQLAlchemy pattern as Stage 0/1; no new persistence approach introduced."
+
+  - task_id: NEPTUNE-B-PROVIDER-REGISTRATION
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      Claude B registers real provider records (groq/openrouter/gemini/openai/
+      cerebras/mistral) through ProviderRegistry.register() as providers come
+      online, and real tool records through ToolRegistry.register(). Core
+      only owns the catalog; B owns populating it with real, verified data.
+
+  - task_id: NEPTUNE-ROUTER-CAPABILITY-LOOKUP
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      The future Router (ROUTER_CONTRACT.md: "Routing is capability-oriented")
+      resolves candidate providers via ProviderRegistry.find_by_capability()
+      and candidate tools via ToolRegistry.find_by_capability(). This entry
+      documents the integration point; no Router task is active yet.
+
+  - task_id: NEPTUNE-A-004-REGISTRY-POPULATION
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+    note: >
+      Loader/exporter/audit operate on the registry service classes from
+      A-003 without changing their public shape; verification metadata
+      fields are additive. Also fixes a Stage-0/1-era bug (EventModel.task_id
+      ForeignKey) discovered while wiring the audit trail -- see ADR-A-010.
+
+  - task_id: NEPTUNE-B-PROVIDER-REGISTRATION-UPDATE
+    depends_on:
+      - NEPTUNE-A-004-REGISTRY-POPULATION
+    note: >
+      Supersedes the NEPTUNE-B-PROVIDER-REGISTRATION note above: as of A-004,
+      groq/openrouter/gemini/ollama/openai_compatible already have a verified
+      baseline entry in 06_REGISTRIES/data/providers.yaml (base URL,
+      OpenAI-compatibility, auth method). Claude B's job is to layer live
+      operational data on top (current models, rate limits, uptime) via
+      ProviderRegistry.update(), not to register these five from scratch.
+      openai/cerebras/mistral remain unregistered -- still B's to add.
+
+  - task_id: NEPTUNE-DIRECTOR-ALEMBIC-DECISION
+    depends_on: []
+    note: >
+      Flagged, not resolved: A-004 needed a local dev Postgres volume reset
+      twice (verification_date/source/status columns, then the FK removal)
+      because create_all() doesn't alter existing tables. This is the second
+      time schema evolution has required a manual reset (see A-004 known
+      limitations). Recommend the director weigh introducing a minimal
+      Alembic setup now that there's concrete recurring cost evidence, vs.
+      continuing to defer it.
+
+  - task_id: NEPTUNE-A-005-RUNTIME-DRIVER
+    depends_on:
+      - NEPTUNE-A-RUNTIME-STAGE2-CORE
+    note: >
+      RuntimeDriver is a pure consumer of AgentRuntime's seven public
+      methods (create_task, start_agent_run, start_session, run_turn,
+      checkpoint, resume, complete_task) -- no changes to engine.py were
+      needed or made.
+
+  - task_id: NEPTUNE-B-MODEL-GATEWAY-DRIVER-SIGNAL
+    depends_on:
+      - NEPTUNE-A-005-RUNTIME-DRIVER
+    note: >
+      Once Claude B's real Model Gateway exists, RuntimeDriver.should_complete
+      currently uses only "did this turn make tool_calls" as its completion
+      signal (ADR-038). If the real Gateway's normalized response includes a
+      richer completion signal (finish_reason, structured stop signal, etc.),
+      that's the point to revisit should_complete/should_continue with a
+      second real signal instead of the current single-signal policy.
+
+  - task_id: B-006-tool-execution-recovery-validation
+    depends_on:
+      - NEPTUNE-A-005-RUNTIME-DRIVER
+      - B-004-tool-execution-boundary
+    note: >
+      Requires both branches merged locally to exist in the same
+      workspace (see B-DEC-017). Satisfies NEPTUNE-B-TOOL-LAYER-IMPL
+      above by providing a real ToolPort implementation wrapping
+      ToolExecutorService/EchoTool.

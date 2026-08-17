@@ -189,7 +189,8 @@ decisions:
       with a deterministic natural-language template (sorted-key JSON
       for success, "failed (outcome): message" for failure). Full
       rationale and consequences recorded in
-      05_DECISIONS/ADR-037-observation-feedback-format.md rather than
+      05_DECISIONS/ADR-039-observation-feedback-format.md (renumbered
+      from ADR-037 during B-006 -- see B-DEC-017) rather than
       only here, since this is a format decision future tasks need to
       find without reading DEVELOPMENT_STATE history.
     reversible: true
@@ -212,3 +213,186 @@ decisions:
       Verified no regressions: full suite still passes (48 passed, 4
       skipped) after the change.
     reversible: true
+
+  - id: ADR-A-001
+    made_by: claude-a
+    title: "Accept reference stack for Stage 0/1: Python + SQLAlchemy 2.0 + PostgreSQL"
+    rationale: >
+      06_REGISTRIES/REFERENCE_STACK_REGISTRY.md candidates are adequate,
+      free-tier-friendly, and match what Claude B will likely also assume.
+      No genuine technical reason found to deviate; re-evaluating would be
+      optimization without justification (per director's Technology
+      Question guidance).
+    status: recorded
+  - id: ADR-A-002
+    made_by: claude-a
+    title: "Repository pattern: one commit per call, sessionmaker-injected"
+    rationale: >
+      SESSION_CONTRACT.md explicitly defers "exact session persistence;
+      concurrency model." Chose the simplest correct unit-of-work (one
+      transaction per repository call) as a Stage 1 baseline rather than
+      speculatively building multi-statement transaction/unit-of-work
+      machinery no consumer has asked for yet.
+    status: recorded
+  - id: ADR-A-003
+    made_by: claude-a
+    title: "Local Postgres via docker-compose on host port 5433"
+    rationale: >
+      Keeps the $0 baseline (Bible primary objective) and avoids clashing
+      with any pre-existing local Postgres on the default 5432 port.
+      NEPTUNE_DATABASE_URL env var overrides for any other
+      Postgres-compatible target without code changes.
+    status: recorded
+
+  - id: ADR-A-004
+    made_by: claude-a
+    title: "No generalized Agent/Session/Turn transition-rule tables for the runtime stage"
+    rationale: >
+      Director explicitly warned against silently inventing a large frozen
+      lifecycle-rule library after Stage 0/1 added Task's transition table.
+      Agent/Session/Turn status changes are enforced procedurally inside
+      AgentRuntime (src/core/runtime/engine.py) at exactly the points the
+      Task -> Agent Run -> Session -> Turn -> Checkpoint lifecycle needs
+      them, not as a separate generalized validated-transition class like
+      Task's. Task keeps its table because task.schema.json's status enum
+      made a formal contract explicit; Agent/Session/Turn have no
+      equivalent Bible-specified enum, so a formal table would be
+      implementation speculation, not contract-following.
+    status: recorded
+  - id: ADR-A-005
+    made_by: claude-a
+    title: "Model Gateway / Tool boundary as Python Protocols returning opaque dicts"
+    rationale: >
+      core.contracts.gateway.ModelGatewayPort and core.contracts.tools.ToolPort
+      take/return plain dicts rather than typed request/response models.
+      Core does not know or need to know the shape of a real provider's
+      request/response -- that normalization is Claude B's Model Gateway
+      responsibility (ADR-003, ADR-032). Turn.model_request/model_response
+      already persist as opaque JSON (Stage 0/1), so this keeps the
+      runtime and persistence layers consistent instead of introducing a
+      second, narrower schema Core would have to keep in sync.
+    status: recorded
+  - id: ADR-A-006
+    made_by: claude-a
+    title: "Tool-call loop does not auto-repeat within a single run_turn() call"
+    rationale: >
+      After executing the tool_calls in a model response, the engine does
+      not automatically send the resulting observations back to the model
+      for a follow-up response within the same turn -- that would be
+      express a loop *policy* (when to keep looping vs. hand back to the
+      caller), which belongs to the future agent-loop driver built on top
+      of this runtime, not to Core's control-plane primitives. The
+      director's brief asks for orchestration machinery, not the actual
+      loop-continuation policy. _MAX_TOOL_ROUNDS_PER_TURN in engine.py is
+      a safety ceiling for future policies that do choose to loop, not an
+      active behavior yet.
+    status: recorded
+
+  - id: ADR-A-007
+    made_by: claude-a
+    title: "Fixed-vocabulary registries with a strict/non-strict register() switch"
+    rationale: >
+      The four registries validate capability_id/provider_id/resource_id/
+      tool_id against the exact vocabularies given in task A-003 by
+      default (strict=True). A non-strict mode is also exposed so the
+      registries can still store forward-compatible entries (new
+      providers, new capabilities) as data without a code change once B or
+      the director expands the vocabulary -- consistent with
+      06_REGISTRIES/PROVIDER_REGISTRY.md's framing of registry entries as
+      "operational data," not frozen architecture.
+    status: recorded
+  - id: ADR-A-008
+    made_by: claude-a
+    title: "Registry domain + service classes live together in core/registry/*.py per-file, not split into core/domain + infrastructure like Stage 0/1"
+    rationale: >
+      Task A-003 explicitly specified the file layout (core/registry/
+      capability_registry.py etc.), one file per registry combining the
+      dataclass and the thin service class. To keep core/ provider-
+      independent per the existing contract test
+      (test_core_has_no_infrastructure_or_provider_imports), each
+      core/registry/*.py file imports its matching Protocol from
+      core/contracts/registry.py only under `TYPE_CHECKING`, avoiding a
+      runtime circular import between contracts/registry.py (which imports
+      the dataclasses) and registry/*.py (which would otherwise import the
+      Protocols). SQLAlchemy implementations still live entirely in
+      infrastructure/persistence, matching Stage 0/1's dependency
+      direction.
+    status: recorded
+  - id: ADR-A-009
+    made_by: claude-a
+    title: "Dependency resolution is a single cross-registry pure function, not per-registry logic"
+    rationale: >
+      A dependency (e.g. a tool depending on a resource) can point across
+      registry boundaries, so resolution can't live inside just one
+      registry class without that class reaching into the others.
+      core/registry/dependency_resolution.py implements a generic
+      topological sort over an id -> depends_on map the caller assembles
+      from whichever registries are relevant, with cycle detection
+      (DependencyCycleError) and an UnresolvedDependencyError for
+      references to entries that don't exist. This keeps each registry
+      class simple and keeps the resolution algorithm independent of which
+      registry an id came from.
+    status: recorded
+
+  - id: ADR-A-010
+    made_by: claude-a
+    title: "Registry audit events use a sentinel task_id; removed an incorrect ForeignKey on EventModel.task_id"
+    rationale: >
+      Task A-004 requires registry mutations to emit Events via the
+      existing Event infrastructure, but registry entries aren't scoped to
+      any Task. event.schema.json (FROZEN) requires task_id to be a
+      non-null string -- it does NOT require that string to reference an
+      existing Task row. core/registry/audit.py uses a documented sentinel
+      task_id ("system-registry") for these events rather than weakening
+      the frozen schema. This surfaced a real bug: EventModel.task_id
+      (infrastructure/persistence/models/orm.py) had a
+      ForeignKey("tasks.task_id") constraint that was never required by
+      the contract. SQLite silently ignored it (constraints unenforced by
+      default), so it passed every SQLite-backed test through A-003, but
+      Postgres enforced it and rejected the first non-task-scoped event.
+      Fixed by removing the ForeignKey (task_id stays a required, non-null
+      String column -- only the referential-integrity constraint is
+      gone). This is a persistence-layer bugfix, not a change to the
+      frozen Event contract.
+    status: recorded
+    known_limitation: >
+      Fixing this required a local dev Postgres volume reset
+      (`docker compose down -v`) since create_all() doesn't alter existing
+      tables. Recorded as NEPTUNE-DIRECTOR-ALEMBIC-DECISION in
+      dependencies.yaml for the director's judgment call.
+
+  - id: ADR-A-011
+    made_by: claude-a
+    title: "Expanded KNOWN_PROVIDERS to include ollama and openai_compatible"
+    rationale: >
+      Task A-004 explicitly asked for Groq, OpenRouter, Gemini, Ollama, and
+      OpenAI-compatible provider entries -- two of which (ollama,
+      openai_compatible) were outside A-003's original fixed vocabulary
+      (groq/openrouter/gemini/openai/cerebras/mistral). This is an
+      additive vocabulary expansion under explicit director instruction,
+      not a unilateral scope change -- consistent with ADR-A-007's
+      strict/non-strict design already anticipating vocabulary growth.
+      openai_compatible is registered as provider_type "pattern" (not
+      "model_provider") since it represents the OpenAI-compatibility
+      protocol itself rather than a specific hosted vendor -- documented
+      in 06_REGISTRIES/data/providers.yaml so this distinction isn't lost.
+    status: recorded
+
+  - id: ADR-A-012
+    made_by: claude-a
+    title: "RuntimeDriver: single-signal (tool_calls presence) continue/complete/stop policy"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-038-runtime-driver-policy.md.
+      Summary: the only signal RuntimeDriver uses to decide whether a Turn
+      is final is whether the model made tool calls that turn --
+      deliberately not parsing model_response.content or assuming any
+      provider-specific completion field, since neither exists yet
+      (Gateway/Tool boundary are opaque dicts by design, ADR-A-005) and
+      the director's brief forbids provider-specific assumptions.
+      tool_failed is a hard stop, not a retry (retry policy is
+      undesigned, not defaulted). Driver-level max_turns is distinct from
+      and does not touch engine.py's internal _MAX_TOOL_ROUNDS_PER_TURN.
+      Checkpointing after every turn by default guarantees a checkpoint
+      exists at whatever point execution stops, so resume always has
+      something to resume from.
+    status: recorded
