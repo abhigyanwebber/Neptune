@@ -45,7 +45,9 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-036 — Isolated agent workspaces
 - ADR-037 — Core Runtime open-source evaluation
 - ADR-038 — Runtime Driver policy
-- ADR-039 — Observation feedback format
-- ADR-040 — ToolPort attribution seam (B-006 finding)
+- ADR-039 — Resolution layer provider selection policy
+- ADR-040 — Plan executor policy
+- ADR-041 — Observation feedback format
+- ADR-042 — ToolPort attribution seam (B-006 finding)
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

@@ -1,4 +1,4 @@
-# ADR-039 — Observation Feedback Format
+# ADR-041 — Observation Feedback Format
 
 **Status:** PROPOSED
 
@@ -83,10 +83,14 @@ multiple tool calls per turn need to be distinguished in a way plain
 sequential text messages cannot express.
 
 ## Renumbering note
-Originally filed as ADR-037. Renamed to ADR-039 during B-006's
-worker/claude-a merge, since Claude A had independently claimed
-ADR-037 (core-runtime-open-source-evaluation.md) and ADR-038
-(runtime-driver-policy.md) on the unmerged branch -- a real number
-collision discovered only because this merge finally brought both
-ADR sequences into the same working tree. No content changed besides
-the number and this note.
+Originally filed as ADR-037, then renamed to ADR-039 during B-006's
+worker/claude-a merge (Claude A had independently claimed ADR-037/038
+on the unmerged branch at that time). Renamed again to ADR-041 during
+the C-002 repository correction sprint, because Claude A had, in
+parallel and unknown to either side until the branches were fully
+reconciled, independently claimed ADR-039
+(resolution-layer-selection-policy.md, A-006) and ADR-040
+(plan-executor-policy.md, A-007). This second collision was resolved
+by renumbering Claude B's ADRs rather than Claude A's, to avoid
+touching content Claude A's own in-progress work may already
+reference. No content changed besides the number and this note.

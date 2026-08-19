@@ -125,7 +125,7 @@ assignments:
     scope: >
       Implemented src/neptune/application/observation_loop.py:
       ObservationMessageBuilder (deterministic ToolResult ->
-      ContextMessage formatting, see ADR-039), ObservationProcessor
+      ContextMessage formatting, see ADR-041), ObservationProcessor
       (executes ToolIntents via ToolExecutor, builds follow-up
       ModelRequest), LoopResult, and run_observation_loop() driving
       Model -> ToolIntent -> ToolExecution -> Observation -> Follow-up
@@ -143,7 +143,7 @@ assignments:
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
-    adr: "ADR-039-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge -- see B-DEC-017)"
+    adr: "ADR-041-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge, then from ADR-039 during C-002 correction sprint -- see B-DEC-017, C-DEC-001)"
     tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"
 
   - task_id: NEPTUNE-A-STAGE0-1-CORE
@@ -267,7 +267,7 @@ assignments:
     status: completed
     branch: worker/claude-a
     scope:
-      - src/core/planning/ (models.py: Goal/Plan/PlanStep/StepStatus; executor.py: PlanExecutor; errors.py)
+      - "src/core/planning/ (models.py: Goal/Plan/PlanStep/StepStatus; executor.py: PlanExecutor; errors.py)"
       - src/core/contracts/planning.py (PlanRepository Protocol)
       - src/infrastructure/persistence (PlanModel ORM + SqlAlchemyPlanRepository; steps persisted as JSON, no separate steps table)
       - 05_DECISIONS/ADR-040 (ordering, failure-cascade, and persistence-shape rationale)
@@ -298,7 +298,7 @@ assignments:
       tool_port_adapter.py (ToolPortAdapter) as the minimal supporting
       seam satisfying Core's ToolPort Protocol with Neptune's real
       ToolExecutor -- no contract modified on either side (see
-      ADR-040). Added tests/integration/runtime/
+      ADR-042). Added tests/integration/runtime/
       test_tool_execution_recovery.py +
       _tool_execution_recovery_script.py, extending A-005's existing
       driver-recovery test pattern.
@@ -316,5 +316,40 @@ assignments:
     registry_modified: false
     new_tools: false
     adr:
-      - "ADR-040-toolport-attribution-seam.md"
+      - "ADR-042-toolport-attribution-seam.md (renumbered from ADR-040 during C-002 correction sprint -- see C-DEC-001)"
     tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."
+
+
+  - task_id: C-002-C-003-repository-correction-sprint
+    worker_id: B
+    title: "Repository Correction Sprint (ADR Cleanup + Dependency Cleanup)"
+    status: complete
+    authorized_by: director
+    scope: >
+      Pure correction/audit-remediation, no feature development, no
+      architecture changes, no new capabilities. C-002: found and
+      fixed a second ADR-numbering collision (ADR-039 and ADR-040
+      each independently double-claimed by both lanes) after fast-
+      forward merging Claude A's latest (42b3cd1, which itself already
+      contained a merge of worker/claude-b) into worker/claude-b;
+      renumbered Claude B's two colliding ADRs to ADR-041/ADR-042 and
+      fixed every reference; verified all 42 ADRs unique/sequential
+      and the index matches the filesystem exactly. C-003: added the
+      missing `requests` dependency to requirements.txt (the repo's
+      only dependency file); verified via a genuinely fresh venv that
+      install, test collection, and the full suite all succeed with
+      no dependency-related failures.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort
+    runtime_modified: false
+    registry_modified: false
+    new_capabilities: false
+    tests: "136 passed, 12 skipped, confirmed identically in both the ambient environment and a fresh venv built only from requirements.txt"

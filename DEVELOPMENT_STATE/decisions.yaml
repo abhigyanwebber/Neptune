@@ -189,8 +189,9 @@ decisions:
       with a deterministic natural-language template (sorted-key JSON
       for success, "failed (outcome): message" for failure). Full
       rationale and consequences recorded in
-      05_DECISIONS/ADR-039-observation-feedback-format.md (renumbered
-      from ADR-037 during B-006 -- see B-DEC-017) rather than
+      05_DECISIONS/ADR-041-observation-feedback-format.md (renumbered
+      from ADR-037 during B-006, then from ADR-039 during the C-002
+      correction sprint -- see B-DEC-017, C-DEC-001) rather than
       only here, since this is a format decision future tasks need to
       find without reading DEVELOPMENT_STATE history.
     reversible: true
@@ -473,5 +474,108 @@ decisions:
       no Core-side equivalent to pass through, so a clearly-labeled
       placeholder ("{session_id}-pending-turn") is used -- it carries
       no functional meaning on either side. Full rationale and
-      consequences in 05_DECISIONS/ADR-040-toolport-attribution-seam.md.
+      consequences in 05_DECISIONS/ADR-042-toolport-attribution-seam.md
+      (renumbered from ADR-040 during the C-002 correction sprint --
+      see C-DEC-001).
     reversible: true
+
+
+  - id: C-DEC-001
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Second ADR-numbering collision found and fixed (first was the
+      ADR-037 collision resolved during B-006, B-DEC-017). Claude A
+      independently merged worker/claude-b into worker/claude-a
+      (commit 42b3cd1) while, in parallel, Claude A's own A-006/A-007
+      work had independently claimed ADR-039
+      (resolution-layer-selection-policy.md) and ADR-040
+      (plan-executor-policy.md) -- the same numbers Claude B's
+      B-005/B-006 work had claimed (observation-feedback-format.md,
+      toolport-attribution-seam.md) after the first collision's fix.
+      Fast-forward merged origin/worker/claude-a's latest (42b3cd1)
+      into worker/claude-b (zero conflicts -- worker/claude-b's prior
+      commit was already an ancestor). Resolved by renumbering
+      Claude B's two ADRs to ADR-041 and ADR-042 (next free numbers),
+      leaving Claude A's ADR-039/ADR-040 untouched, consistent with
+      the same rationale used for the first collision: avoid touching
+      content the other lane's own in-progress work may already
+      reference. Updated every reference (00_ADR_INDEX.md,
+      DEVELOPMENT_STATE/assignments.yaml, decisions.yaml,
+      src/neptune/application/observation_loop.py). Verified
+      programmatically: all 42 ADR files (001-042) have unique,
+      sequential numbers with no gaps, and 00_ADR_INDEX.md's entries
+      exactly match the filesystem (set equality confirmed via
+      script, not just visual inspection).
+    reversible: true
+    note: >
+      Second occurrence of the same class of problem as B-DEC-017.
+      Recommend the director consider a lighter-weight ADR-number
+      reservation mechanism (e.g. a single shared NEXT_ADR_NUMBER
+      counter in DEVELOPMENT_STATE, claimed atomically) if the
+      two-agent methodology continues to develop both lanes in
+      parallel without frequent cross-branch syncs -- this is the
+      second time in three tasks that isolated branches have produced
+      the same collision independently.
+
+  - id: C-DEC-002
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Added requests>=2.31,<3.0 to requirements.txt -- the only
+      dependency-declaration file in the repository (confirmed no
+      pyproject.toml/setup.py/poetry.lock/Pipfile exist anywhere via
+      a full repository search). requests is imported in exactly two
+      places: src/neptune/infrastructure/providers/groq_adapter.py
+      (production, B-003) and tests/test_groq_adapter_mocked.py
+      (test, for requests.exceptions.Timeout/ConnectionError).
+      Verified via a genuinely fresh virtual environment
+      (python -m venv, pip install -r requirements.txt only, no
+      packages carried over from the ambient environment): pip
+      install succeeded, `pytest --collect-only` collected all 148
+      tests with zero collection errors, and the full suite ran 136
+      passed / 12 skipped -- identical to the pre-fix ambient-
+      environment baseline. All 12 skips have clean, correctly-
+      attributed non-dependency reasons (8x "Postgres not reachable",
+      4x "GROQ_API_KEY not set") -- none are masked import/dependency
+      failures. The venv itself was deleted after verification, never
+      committed.
+    reversible: true
+    note: >
+      Docker Desktop was not running during this session's fresh-venv
+      verification (confirmed via `docker ps` failing to reach the
+      daemon), which is why the 8 Postgres-dependent integration
+      tests skipped rather than ran. This is unrelated to the
+      dependency fix -- the same suite successfully exercised live
+      Postgres earlier in this development history (B-006) with this
+      exact dependency set. Flagged under REMAINING RISKS in the
+      final report, not treated as a defect in this correction.
+
+
+  - id: C-DEC-003
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Found and fixed one additional repository-consistency defect
+      while resolving C-002: DEVELOPMENT_STATE/assignments.yaml's
+      NEPTUNE-A-007-PLANNING-LAYER entry contained an unquoted list
+      item ("- src/core/planning/ (models.py: Goal/Plan/PlanStep/
+      StepStatus; executor.py: PlanExecutor; errors.py)") whose
+      embedded ": " sequences made the file invalid YAML --
+      yaml.safe_load raised ScannerError: "mapping values are not
+      allowed here". This predates this sprint (came in via Claude
+      A's own A-007 commit, confirmed by inspecting the line before
+      any edit of mine touched it) and was not caused by either merge
+      in this task. Fixed by quoting the entire list-item value;
+      content/meaning unchanged, only made syntactically valid.
+      Swept the remaining DEVELOPMENT_STATE/*.yaml files
+      (decisions, workers, dependencies, blockers, integration_queue)
+      for the same class of issue -- none found. Not swept beyond
+      DEVELOPMENT_STATE/, since C-002/C-003's scope is ADR cleanup and
+      the requests dependency specifically; broader repository-wide
+      YAML validation was not requested and risks scope creep into
+      files outside this sprint's mandate.
+    reversible: true
+    note: >
+      Flagging for the director: this is the kind of defect that a
+      simple CI check (`python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]"`
+      over DEVELOPMENT_STATE/*.yaml) would catch automatically before
+      merge, rather than being discovered incidentally during an
+      unrelated correction sprint.

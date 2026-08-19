@@ -14,8 +14,10 @@ workers:
       - B-004-tool-execution-boundary
       - B-005-observation-feedback-loop
       - B-006-tool-execution-recovery-validation
+      - C-002-C-003-repository-correction-sprint
     notes: >
-      worker/claude-a was merged locally into worker/claude-b at
-      commit b4fb5a1 for B-006. worker/claude-a itself is untouched;
-      this note is informational for whoever next reviews branch
-      state.
+      worker/claude-a was fast-forward merged locally into
+      worker/claude-b twice: at commit b4fb5a1 for B-006, and again
+      (fast-forward to 42b3cd1) during C-002/C-003. worker/claude-a
+      itself is untouched by either merge; this note is informational
+      for whoever next reviews branch state.
