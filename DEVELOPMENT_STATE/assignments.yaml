@@ -353,3 +353,43 @@ assignments:
     registry_modified: false
     new_capabilities: false
     tests: "136 passed, 12 skipped, confirmed identically in both the ambient environment and a fresh venv built only from requirements.txt"
+
+
+  - task_id: C-005-legacy-registry-consumer-audit
+    worker_id: B
+    title: "Legacy Registry Consumer & Cutover Audit"
+    status: complete
+    authorized_by: director
+    scope: >
+      Audit and preparation only. No cutover performed, no
+      ModelGateway built, no RuntimeDriver/AgentRuntime/planning/
+      ToolExecutor modification, no canonical Postgres registry
+      implementation change, no provider routing redesign, no
+      providers added, no production consumers migrated. Produced
+      DIRECTOR_LEGACY_REGISTRY_AUDIT.md: complete inventory (12 files
+      classified: 5 production, 3 test, 4 migration-target-overlap,
+      3 documentation, 0 dead/unused), exact live-Groq-path dependency
+      trace (single call site: ModelGatewayService.infer()'s
+      self._registry.candidates_for(...)), canonical replacement map,
+      10-step ordered cutover sequence with explicit dependencies,
+      6 named risks, and the exact file set expected to change.
+      Added tests/contract/test_neptune_core_provider_independence.py
+      (item 4 -- determined genuinely independent of C-004, since it
+      is pure static AST import scanning with no registry/database
+      dependency; mirrors Claude A's existing
+      test_core_provider_independence.py methodology).
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort
+      - core.contracts.gateway.ModelGatewayPort
+    runtime_modified: false
+    registry_modified: false
+    cutover_performed: false
+    tests: "137 passed, 12 skipped (1 new: test_neptune_core_has_no_infrastructure_or_provider_imports)"

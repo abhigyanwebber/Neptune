@@ -613,3 +613,33 @@ decisions:
       whenever both lanes add architectural decisions between syncs.
       Recommend the director treat this as a required process fix,
       not an optional one, before authorizing further parallel work.
+
+  - id: C-DEC-005
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Produced DIRECTOR_LEGACY_REGISTRY_AUDIT.md via a precise,
+      code-only scan (src/, tests/, scripts/, config/) rather than the
+      full-text repository search first attempted, which returned
+      314 hits dominated by prose in DIRECTOR_DECISION_REGISTRY.md and
+      the Bible's own conceptual-interface listing -- neither of which
+      is a real legacy-registry consumer. The narrower scan found 34
+      real hits across 12 files, all of which are individually
+      classified in the audit document. Confirmed zero DEAD/UNUSED
+      legacy-registry code exists -- every production reference is
+      load-bearing for B-003's live path.
+    reversible: true
+
+  - id: C-DEC-006
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Added tests/contract/test_neptune_core_provider_independence.py
+      after determining it is genuinely independent of C-004: it is a
+      pure static AST import scan (mirroring Claude A's existing
+      test_core_provider_independence.py exactly), touches no
+      registry data, database, or Resolution-layer code, and its only
+      dependency is the existence of src/neptune/core/*.py files,
+      which predates this task. Full rationale in the audit document
+      section 4. Verified passing (1 passed) and that it does not
+      regress the full suite (137 passed, 12 skipped, up from 136 --
+      the +1 is this new test).
+    reversible: true
