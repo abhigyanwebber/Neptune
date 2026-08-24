@@ -47,7 +47,8 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-038 — Runtime Driver policy
 - ADR-039 — Resolution layer provider selection policy
 - ADR-040 — Plan executor policy
-- ADR-041 — Observation feedback format
+- ADR-041 — Registry canonical source
 - ADR-042 — ToolPort attribution seam (B-006 finding)
+- ADR-043 — Observation feedback format
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

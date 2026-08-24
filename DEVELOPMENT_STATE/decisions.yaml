@@ -189,9 +189,10 @@ decisions:
       with a deterministic natural-language template (sorted-key JSON
       for success, "failed (outcome): message" for failure). Full
       rationale and consequences recorded in
-      05_DECISIONS/ADR-041-observation-feedback-format.md (renumbered
-      from ADR-037 during B-006, then from ADR-039 during the C-002
-      correction sprint -- see B-DEC-017, C-DEC-001) rather than
+      05_DECISIONS/ADR-043-observation-feedback-format.md (renumbered
+      from ADR-037 during B-006, from ADR-039 during the C-002
+      correction sprint, and from ADR-041 during C-005 -- see
+      B-DEC-017, C-DEC-001, C-DEC-004) rather than
       only here, since this is a format decision future tasks need to
       find without reading DEVELOPMENT_STATE history.
     reversible: true
@@ -579,3 +580,36 @@ decisions:
       over DEVELOPMENT_STATE/*.yaml) would catch automatically before
       merge, rather than being discovered incidentally during an
       unrelated correction sprint.
+
+  - id: C-DEC-004
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Third independent ADR-numbering collision found and fixed
+      immediately upon merging Claude A's latest (origin/worker/
+      claude-a, commit 1184e02, C-001 audit work) into worker/claude-b:
+      Claude A had claimed ADR-041 for registry-canonical-source.md
+      while Claude B's ADR-041 (observation-feedback-format, itself
+      already renumbered twice before -- see C-DEC-001) still existed.
+      This time the merge was NOT a fast-forward (both branches had
+      independently progressed since the last sync), so a real
+      three-way merge (--no-ff) was performed; it produced zero file-
+      level conflicts (A only added new files: ADR-041-registry-
+      canonical-source.md, DIRECTOR_DECISION_REGISTRY.md,
+      DIRECTOR_REVIEW_001.md). Resolved the numbering collision the
+      same way as before: renumbered Claude B's file to ADR-043 (next
+      free number), left Claude A's ADR-041 untouched, fixed every
+      reference (00_ADR_INDEX.md -- which also hadn't been updated for
+      A's own new ADR-041, DEVELOPMENT_STATE/assignments.yaml,
+      decisions.yaml, observation_loop.py docstrings). Verified
+      programmatically: 43 ADR files, all unique/sequential, index
+      matches filesystem exactly.
+    reversible: true
+    note: >
+      This is the THIRD occurrence of this exact problem
+      (B-DEC-017, C-DEC-001, now this). Escalating the recommendation
+      from C-DEC-001: a shared ADR-number reservation mechanism is no
+      longer a nice-to-have suggestion, it is a recurring, entirely
+      predictable failure mode of the current two-agent methodology
+      whenever both lanes add architectural decisions between syncs.
+      Recommend the director treat this as a required process fix,
+      not an optional one, before authorizing further parallel work.

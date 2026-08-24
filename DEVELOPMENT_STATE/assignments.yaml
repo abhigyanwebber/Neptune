@@ -143,7 +143,7 @@ assignments:
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
-    adr: "ADR-041-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge, then from ADR-039 during C-002 correction sprint -- see B-DEC-017, C-DEC-001)"
+    adr: "ADR-043-observation-feedback-format.md (renumbered from ADR-037 during B-006, from ADR-039 during C-002, and from ADR-041 during C-005 -- see B-DEC-017, C-DEC-001, C-DEC-004)"
     tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"
 
   - task_id: NEPTUNE-A-STAGE0-1-CORE
