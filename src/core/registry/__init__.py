@@ -5,6 +5,7 @@ from .dependency_resolution import (
     UnresolvedDependencyError,
     resolve_dependencies,
 )
+from .model_registry import MODEL_STATUSES, Model, ModelRegistry
 from .provider_registry import Provider, ProviderRegistry
 from .registry_exporter import export_registry_snapshot, export_registry_snapshot_to_file
 from .registry_loader import LoadResult, load_registry_directory
@@ -20,6 +21,9 @@ __all__ = [
     "ResourceRegistry",
     "ToolDefinition",
     "ToolRegistry",
+    "Model",
+    "ModelRegistry",
+    "MODEL_STATUSES",
     "resolve_dependencies",
     "DependencyCycleError",
     "UnresolvedDependencyError",

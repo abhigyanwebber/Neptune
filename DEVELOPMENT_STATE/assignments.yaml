@@ -318,3 +318,42 @@ assignments:
     adr:
       - "ADR-040-toolport-attribution-seam.md"
     tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."
+
+  - task_id: NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
+    worker_id: A
+    title: "Canonical Registry Migration"
+    status: complete
+    authorized_by: director
+    depends_on: [C-001, C-002, C-003]
+    scope: >
+      Implemented the first half of registry consolidation identified by
+      C-001/ADR-041: added a canonical Model entity
+      (src/core/registry/model_registry.py + ModelModel ORM +
+      SqlAlchemyModelRepository), extended Provider with 7 fields migrated
+      from the deprecated B-side ProviderRecord (regions, endpoints,
+      pricing_snapshot, quota_snapshot, health_snapshot, terms_url,
+      fallback_providers -- 2 fields deliberately not migrated, see
+      ADR-042), reconciled the capability vocabulary (added summarization/
+      classification/embedding, rejected fast_general/frontier_escalation,
+      see ADR-042), and migrated the one real Groq model/provider entry
+      from config/registries/*.yaml into 06_REGISTRIES/data/{models,providers}.yaml.
+      registry_loader.py/registry_exporter.py extended additively
+      (model_registry is an optional parameter; existing callers
+      unaffected). Existing verification/audit/dependency-resolution
+      mechanisms preserved unchanged, applied to the new Model entity via
+      the same generic resolve_dependencies() used by every other entity
+      type.
+    contracts_not_modified:
+      - MODEL_GATEWAY (not built, per explicit stop condition)
+      - RuntimeDriver / AgentRuntime (untouched)
+      - planning (untouched)
+      - ToolExecutor / ObservationLoop (untouched)
+      - neptune.core.domain.capability.Capability (B-side enum untouched; reconciliation applied only to the canonical KNOWN_CAPABILITIES)
+    runtime_modified: false
+    resolution_modified: false
+    gateway_service_cutover: false
+    yaml_registry_removed: false
+    deprecated_yaml_still_functional: true
+    adr:
+      - "ADR-042-model-entity-and-registry-migration.md"
+    tests: "164 passed, 4 skipped (pre-existing live-credential tests, unrelated). New Model recovery test requires live Postgres; skips cleanly if unavailable."

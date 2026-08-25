@@ -147,6 +147,31 @@ class ProviderModel(Base):
     verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
     verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
     last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
+    regions: Mapped[list] = mapped_column(JSON, default=list)
+    endpoints: Mapped[list] = mapped_column(JSON, default=list)
+    pricing_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
+    quota_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
+    health_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
+    terms_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    fallback_providers: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class ModelModel(Base):
+    __tablename__ = "models"
+
+    model_id: Mapped[str] = mapped_column(String, primary_key=True)
+    provider_id: Mapped[str] = mapped_column(String, nullable=False)
+    provider_model_name: Mapped[str] = mapped_column(String, nullable=False)
+    capabilities: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    depends_on: Mapped[list] = mapped_column(JSON, default=list)
+    verification_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    verification_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_checked: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    __table_args__ = (Index("ix_models_provider_id", "provider_id"),)
 
 
 class ResourceModel(Base):

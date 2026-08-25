@@ -190,3 +190,28 @@ dependencies:
       workspace (see B-DEC-017). Satisfies NEPTUNE-B-TOOL-LAYER-IMPL
       above by providing a real ToolPort implementation wrapping
       ToolExecutorService/EchoTool.
+
+  - task_id: NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
+    depends_on:
+      - NEPTUNE-C-001-REGISTRY-CONSOLIDATION-ANALYSIS
+      - NEPTUNE-A-003-REGISTRY
+      - NEPTUNE-A-004-REGISTRY-POPULATION
+    note: >
+      Implements ADR-041's decision (Postgres-backed registry is
+      canonical). Adds the Model entity ADR-041/DIRECTOR_DECISION_REGISTRY.md
+      §4 named as required follow-up work item #1, and Provider field
+      extension (#2) and capability reconciliation (#3). Items #4
+      (ModelGatewayPort adapter) and #5 (GatewayService cutover) remain
+      unbuilt -- explicitly out of scope for this task.
+
+  - task_id: NEPTUNE-MODELGATEWAY-ADAPTER-STILL-PENDING
+    depends_on:
+      - NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
+    note: >
+      The canonical registry can now represent everything a future
+      ModelGatewayPort adapter would need (Model entity, extended
+      Provider operational metadata, reconciled capability vocabulary),
+      but the adapter itself (DIRECTOR_REVIEW_001.md's top recommendation,
+      and DIRECTOR_DECISION_REGISTRY.md §4 item #4) has not been built.
+      GatewayService still reads from the deprecated YAML ModelRegistry.
+      This is the next logical step after director review of C-004.

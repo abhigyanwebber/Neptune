@@ -47,5 +47,16 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-038 — Runtime Driver policy
 - ADR-039 — Observation feedback format
 - ADR-040 — ToolPort attribution seam (B-006 finding)
+- ADR-041 — Registry canonical source (C-001)
+- ADR-042 — Canonical Model entity, Provider field migration, capability reconciliation (C-004)
+
+**Note:** ADR-039 and ADR-040 each currently have two files under
+`05_DECISIONS/` with different content (Claude A's
+`ADR-039-resolution-layer-selection-policy.md`/
+`ADR-040-plan-executor-policy.md` vs. the entries listed above). This is a
+known, previously-flagged numbering collision (see
+`DIRECTOR_REVIEW_001.md`, Risk Register #1) from parallel branch
+development, not yet resolved. This index lists only one side per number
+pending that correction.
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

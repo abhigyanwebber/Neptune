@@ -475,3 +475,34 @@ decisions:
       no functional meaning on either side. Full rationale and
       consequences in 05_DECISIONS/ADR-040-toolport-attribution-seam.md.
     reversible: true
+
+  - id: ADR-A-015
+    made_by: claude-a
+    title: "Canonical Model entity, Provider field migration, and capability reconciliation (C-004)"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-042-model-entity-and-registry-migration.md.
+      Summary: added core.registry.model_registry.Model (no fixed
+      vocabulary, unlike the other four registries -- model ids are
+      provider-published and open-ended) representing model_id,
+      provider_id, provider_model_name, verification metadata,
+      operational status, plus capabilities/depends_on for consistency
+      with the reconciliation and dependency-resolution work this task
+      also does. Provider extended with 7 fields migrated from the
+      deprecated B-side ProviderRecord (regions, endpoints,
+      pricing_snapshot, quota_snapshot, health_snapshot, terms_url,
+      fallback_providers); failure_history and cache_characteristics
+      deliberately NOT migrated (redundant with the existing audit trail,
+      and descriptive-only respectively). fallback_providers kept
+      distinct from depends_on -- different semantics (substitute vs.
+      prerequisite), must not be conflated in dependency resolution.
+      KNOWN_CAPABILITIES extended with summarization/classification/
+      embedding (genuinely distinct task-type capabilities); fast_general
+      and frontier_escalation deliberately rejected (cost-tier and
+      routing-policy concepts, not capabilities). registry_loader.py/
+      registry_exporter.py extended additively (model_registry optional
+      parameter) -- zero breaking changes to A-004/A-006 callers, 164
+      tests passing including a genuine two-OS-process recovery proof for
+      the new Model entity. GatewayService cutover and ModelGatewayPort
+      adapter explicitly NOT built -- next milestone per
+      DIRECTOR_REVIEW_001.md/DIRECTOR_DECISION_REGISTRY.md.
+    status: recorded

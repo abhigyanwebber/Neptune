@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from core.registry.capability_registry import Capability, CapabilityRegistry
+from core.registry.model_registry import Model, ModelRegistry
 from core.registry.provider_registry import Provider, ProviderRegistry
 from core.registry.registry_exporter import (
     SNAPSHOT_SCHEMA_VERSION,
@@ -15,6 +16,7 @@ from core.registry.tool_registry import ToolDefinition, ToolRegistry
 from infrastructure.persistence.database import create_all_tables, make_session_factory
 from infrastructure.persistence.repositories import (
     SqlAlchemyCapabilityRepository,
+    SqlAlchemyModelRepository,
     SqlAlchemyProviderRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyToolDefinitionRepository,
@@ -87,3 +89,27 @@ def test_export_empty_registries_produces_empty_lists():
     assert snapshot["providers"] == []
     assert snapshot["resources"] == []
     assert snapshot["tools"] == []
+
+
+def test_export_snapshot_omits_models_key_when_no_model_registry_supplied(populated_registries):
+    # Backward compatibility: existing A-006/A-004 callers that don't pass
+    # a ModelRegistry keep getting the exact same snapshot shape as before.
+    snapshot = export_registry_snapshot(*populated_registries)
+    assert "models" not in snapshot
+    assert snapshot["schema_version"] == "1.1"
+
+
+def test_export_snapshot_includes_models_when_supplied(populated_registries):
+    capabilities, providers, resources, tools = populated_registries
+    engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
+    create_all_tables(engine)
+    sf = make_session_factory(engine)
+    models = ModelRegistry(SqlAlchemyModelRepository(sf))
+    models.register(
+        Model(model_id="groq-llama-3.3-70b-versatile", provider_id="groq", provider_model_name="llama-3.3-70b-versatile")
+    )
+
+    snapshot = export_registry_snapshot(capabilities, providers, resources, tools, models)
+    assert [m["model_id"] for m in snapshot["models"]] == ["groq-llama-3.3-70b-versatile"]
+    # Must still be plain-JSON-serializable with the new section present.
+    json.dumps(snapshot)

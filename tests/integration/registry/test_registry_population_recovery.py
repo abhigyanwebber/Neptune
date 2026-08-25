@@ -43,7 +43,7 @@ def test_population_survives_process_termination_and_is_auditable():
     load_result = json.loads(load_proc.stdout.strip().splitlines()[-1])
     assert load_result["errors"] == []
     assert load_result["providers_loaded"] == 5
-    assert load_result["capabilities_loaded"] == 10
+    assert load_result["capabilities_loaded"] == 13  # 10 (A-004) + 3 (C-004 reconciliation, ADR-042)
     assert load_result["resources_loaded"] == 6
     assert load_result["tools_loaded"] == 5
 
@@ -60,4 +60,4 @@ def test_population_survives_process_termination_and_is_auditable():
     assert result["audit_events_present"] is True
     assert result["audit_event_types_include_provider_registered"] is True
     assert result["snapshot_provider_count"] == result["provider_count"]
-    assert result["snapshot_schema_version"] == "1.0"
+    assert result["snapshot_schema_version"] == "1.1"

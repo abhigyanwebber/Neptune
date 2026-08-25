@@ -49,6 +49,21 @@ class Provider:
     verification_source: Optional[str] = None
     verification_status: Optional[str] = None
     last_checked: Optional[str] = None
+    # Operational metadata migrated from the deprecated B-side
+    # ProviderRecord (C-001/C-004). Each field kept only where it has a
+    # clear architectural purpose distinct from what the registry already
+    # tracks -- see ADR-042 for the full inclusion/exclusion rationale.
+    # NOT migrated: failure_history (redundant with the registry's own
+    # Event audit trail -- registry.provider.updated events already carry
+    # this); cache_characteristics (descriptive-only, no code consumes it
+    # structurally -- fits in `notes` instead of a dedicated column).
+    regions: list[str] = field(default_factory=list)
+    endpoints: list[str] = field(default_factory=list)
+    pricing_snapshot: Optional[str] = None
+    quota_snapshot: Optional[str] = None
+    health_snapshot: Optional[str] = None
+    terms_url: Optional[str] = None
+    fallback_providers: list[str] = field(default_factory=list)
 
 
 class ProviderRegistry:

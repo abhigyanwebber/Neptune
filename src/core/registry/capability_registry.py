@@ -7,6 +7,21 @@ rather than a Python Enum so the registry can still *store* an
 unrecognized capability as data (useful for forward-compatibility / B's
 work) while CapabilityRegistry.register() rejects anything outside the
 known set by default -- see `strict` parameter.
+
+C-004 reconciliation: three values were added from the deprecated B-side
+Capability enum (neptune.core.domain.capability.Capability) as genuinely
+distinct task-type capabilities not already covered: `summarization`,
+`classification`, `embedding`. Two B-side values were deliberately
+rejected as NOT capabilities in this vocabulary's sense -- see ADR-042
+for the full reasoning:
+  - `fast_general` describes a latency/performance tier, not a task-type
+    capability; it overlaps with cost/routing concerns (CostClass), not
+    with what a model can *do*.
+  - `frontier_escalation` describes a routing/escalation policy (ADR-006
+    "Explicit escalation"), not a capability fact about a model.
+neptune.core.domain.capability.Capability itself is NOT modified by this
+reconciliation (out of scope for C-004; that enum stays B's own code
+until the GatewayService cutover milestone).
 """
 from __future__ import annotations
 
@@ -32,6 +47,11 @@ KNOWN_CAPABILITIES: frozenset[str] = frozenset(
         "terminal",
         "memory",
         "planning",
+        # Added by C-004 capability vocabulary reconciliation (see module
+        # docstring and ADR-042):
+        "summarization",
+        "classification",
+        "embedding",
     }
 )
 

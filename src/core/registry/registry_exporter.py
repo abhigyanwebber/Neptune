@@ -15,14 +15,18 @@ import dataclasses
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from .capability_registry import CapabilityRegistry
+from .model_registry import ModelRegistry
 from .provider_registry import ProviderRegistry
 from .resource_registry import ResourceRegistry
 from .tool_registry import ToolRegistry
 
-SNAPSHOT_SCHEMA_VERSION = "1.0"
+# 1.1: added the optional "models" section (C-004). 1.0 consumers reading
+# only capabilities/providers/resources/tools are unaffected -- the new
+# section is additive and simply absent when no ModelRegistry is supplied.
+SNAPSHOT_SCHEMA_VERSION = "1.1"
 
 
 def export_registry_snapshot(
@@ -30,8 +34,9 @@ def export_registry_snapshot(
     provider_registry: ProviderRegistry,
     resource_registry: ResourceRegistry,
     tool_registry: ToolRegistry,
+    model_registry: Optional[ModelRegistry] = None,
 ) -> dict[str, Any]:
-    return {
+    snapshot: dict[str, Any] = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "capabilities": [dataclasses.asdict(c) for c in capability_registry.list_all()],
@@ -39,6 +44,9 @@ def export_registry_snapshot(
         "resources": [dataclasses.asdict(r) for r in resource_registry.list_all()],
         "tools": [dataclasses.asdict(t) for t in tool_registry.list_all()],
     }
+    if model_registry is not None:
+        snapshot["models"] = [dataclasses.asdict(m) for m in model_registry.list_all()]
+    return snapshot
 
 
 def export_registry_snapshot_to_file(
@@ -47,9 +55,10 @@ def export_registry_snapshot_to_file(
     provider_registry: ProviderRegistry,
     resource_registry: ResourceRegistry,
     tool_registry: ToolRegistry,
+    model_registry: Optional[ModelRegistry] = None,
 ) -> Path:
     snapshot = export_registry_snapshot(
-        capability_registry, provider_registry, resource_registry, tool_registry
+        capability_registry, provider_registry, resource_registry, tool_registry, model_registry
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
