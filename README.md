@@ -1,139 +1,113 @@
-# NEPTUNE — Production-Capable Agent Infrastructure Bible
+# Neptune
 
-**Repository package:** v0.7  
-**Phase:** Architecture complete / final implementation handoff  
-**Status:** Reference implementation specification complete; ready to build
+**A reusable, project-agnostic agent infrastructure — a provider-agnostic, self-hostable, Claude-Code-like execution environment.**
 
-## What this repository is
+Version: 0.7.1 · Phase: implementation (post-architecture-freeze) · Status: core layers built and validated; end-to-end wiring in progress
 
-This repository is the source of truth for a reusable, project-agnostic agentic AI infrastructure.
+## What is Neptune?
 
-Neptune is designed to provide production-capable agent execution while maximizing capability from free or very cheap resources.
+Neptune is infrastructure for running AI agents in production, without betting the whole system on any single model provider, framework, or paid tier.
 
-The central strategy is not to find one permanently free provider. It is to build an infrastructure layer that can survive provider, quota, model, runtime, and resource changes.
+Most agent projects hard-wire themselves to one LLM API and one execution harness. When that provider changes pricing, rate-limits, or deprecates a model, the project breaks. Neptune's answer is to treat models, tools, and resources as swappable components behind stable contracts, so the agent runtime keeps working even as the providers underneath it change.
 
-## Core objective
+Concretely, Neptune is a set of layered, contract-driven components — task/session/turn state, a model gateway, a tool execution boundary, a registry of providers and capabilities, and a recovery-capable runtime — designed to be reused across future projects rather than rebuilt per-project.
 
-> **Build the strongest practical agent infrastructure possible from the available free/cheap resource portfolio, while preserving a useful $0 baseline and treating temporary credits as burst capital rather than foundations.**
+## Why Neptune?
 
-## What v0.6 completes
+- **Claude-Code-like production workflow** — a durable agent loop (goal → plan → model → tool → observation → next turn) rather than a one-shot script.
+- **Provider/model freedom** — providers are adapters behind a gateway contract; no provider name is hard-coded into core logic.
+- **Cost control** — built free/cheap-first, with paid or rate-limited resources treated as optional burst capacity, not a foundation.
+- **Reusable infrastructure** — the runtime, registries, and contracts are meant to outlive any single project built on top of them.
+- **Durable execution and recovery** — state (tasks, turns, checkpoints, events) is persisted so a run can stop and resume across process restarts.
 
-The Bible now defines:
-
-- vision and principles;
-- architecture and dependency direction;
-- core domain model;
-- security boundaries;
-- contracts;
-- research-derived decisions;
-- resource and model registries;
-- reference production topology;
-- economic strategy;
-- failure/recovery rules;
-- provisional implementation candidates for the first build;
-- component graph;
-- end-to-end data flow;
-- reference interfaces;
-- first vertical slice;
-- build order;
-- Phase 1 acceptance gates;
-- fallback/resource matrix;
-- final architecture audit.
-
-## Authority order
-
-When documents disagree, use this order:
-
-1. `01_BIBLE/` — architectural principles and boundaries
-2. `02_ARCHITECTURE/` — canonical relationships and dependency direction
-3. `05_DECISIONS/` — frozen architectural decisions
-4. `03_CONTRACTS/` — component responsibilities and invariants
-5. `09_SCHEMAS/` — machine-readable representations
-6. `12_VALIDATION/` — acceptance and phase gates
-7. `04_RESEARCH/` — evidence and recommendations
-8. `06_REGISTRIES/` — volatile provider/resource facts
-
-Research and registry facts may change. Architecture changes only through an explicit decision.
-
-## The critical distinction
+## How It Works
 
 ```text
-ARCHITECTURE
-    = what Neptune must remain
-
-REFERENCE IMPLEMENTATION
-    = how the first version will be built
-
-RESOURCE REGISTRY
-    = what external resources are currently available
+Goal
+  ↓
+Planning
+  ↓
+Capability / Provider Resolution
+  ↓
+Runtime
+  ↓
+Model Gateway
+  ↓
+LLM
+  ↓
+Tool Execution
+  ↓
+Observation
+  ↓
+Next Turn / Completion
+  ↓
+Checkpoint / Recovery
 ```
 
-Do not confuse them.
+- **Planning** turns a goal into an ordered set of steps (`core/planning`), independent of any particular runtime turn.
+- **Resolution** picks concrete capabilities, providers, and resources for a step from the registries (`core/resolution`).
+- **Runtime** (`core/runtime`) drives a session turn-by-turn: assemble context, request a model turn, execute any requested tool calls, record the observation, decide whether to continue or complete.
+- **Model Gateway** normalizes requests/responses across providers behind `MODEL_CONTRACT`/`PROVIDER_CONTRACT`/`ROUTER_CONTRACT`; the first live adapter is Groq.
+- **Tool Execution** runs tool calls under a boundary that enforces timeouts and output-size limits (`TOOL_CONTRACT`).
+- **Observation** feeds tool results back to the model as deterministic, replayable messages (ADR-043).
+- **Checkpoint / Recovery** persists state to Postgres so a run can resume in a fresh process after a stop or crash.
 
-## Start here if you are implementing Neptune
+## Current State
 
-Read in this order:
+**Implemented and validated:**
 
-1. `00_SOURCE_MATERIALS/SOURCE_MANIFEST.md`
-2. `01_BIBLE/00_DOCUMENT_CONTROL.md`
-3. `01_BIBLE/01_VISION_AND_PRINCIPLES.md`
-4. `02_ARCHITECTURE/01_SYSTEM_MAP.md`
-5. `02_ARCHITECTURE/06_CORE_DOMAIN_MODEL.md`
-6. `02_ARCHITECTURE/02_DEPENDENCY_DIRECTION.md`
-7. `02_ARCHITECTURE/07_BOUNDARY_RULES.md`
-8. `03_CONTRACTS/00_CONTRACT_CONVENTIONS.md`
-9. relevant component contracts
-10. `05_DECISIONS/00_ADR_INDEX.md`
-11. `01_BIBLE/14_REFERENCE_PRODUCTION_BLUEPRINT.md`
-12. `01_BIBLE/16_FINAL_IMPLEMENTATION_SPEC.md`
-13. `02_ARCHITECTURE/11_REFERENCE_COMPONENT_GRAPH.md`
-14. `02_ARCHITECTURE/12_REFERENCE_DATA_FLOW.md`
-15. `02_ARCHITECTURE/13_REFERENCE_BUILD_ORDER.md`
-16. `03_CONTRACTS/REFERENCE_INTERFACES.md`
-17. `06_REGISTRIES/REFERENCE_STACK_REGISTRY.md`
-18. `12_VALIDATION/08_FINAL_BIBLE_AUDIT.md`
-19. `01_BIBLE/17_FINAL_FREEZE.md`
-19. `12_VALIDATION/09_PHASE_1_ACCEPTANCE_GATES.md`
+- Core domain + persistence: Task/Agent/Session/Turn/Event/Checkpoint over Postgres, with a process-boundary recovery test.
+- Registries: capability, provider, resource, and tool catalogs, with a YAML loader, JSON snapshot exporter, and audit trail.
+- Resolution layer: capability → provider/resource selection and dependency expansion, independent of execution.
+- Planning layer: `Goal`/`Plan`/`PlanStep` contracts and a `PlanExecutor` that runs hand-authored plans (no AI-driven plan generation yet).
+- Model Gateway: `MODEL_CONTRACT`/`PROVIDER_CONTRACT`/`ROUTER_CONTRACT` implemented, with a live Groq adapter validated against the real API.
+- Tool execution boundary: `ToolExecutor`, `EchoTool`, and a registry adapter, with timeout and output-size enforcement.
+- Observation feedback loop: model → tool → observation → follow-up model request, driven by `run_observation_loop`.
+- Cross-process tool-execution recovery, validated against live Postgres via a `ToolPortAdapter` bridging the Runtime's `ToolPort` contract to the real `ToolExecutor` (ADR-042).
 
-## First build
+**Currently under integration:**
 
-Do not build the whole platform at once.
+- Wiring the real Model Gateway into `AgentRuntime` in place of the test-only `FakeModelGateway`.
+- Cutting over remaining legacy registry consumers to the canonical registry (audited in `DIRECTOR_LEGACY_REGISTRY_AUDIT.md`; cutover itself not yet performed).
 
-Start with:
+**Not yet started:**
 
-```text
-Task
- -> Session
- -> Context
- -> Model Gateway
- -> Router
- -> LiteLLM
- -> one free model
- -> one safe tool
- -> Event
- -> Checkpoint
- -> Verification
-```
+- AI-driven plan generation (planning currently executes hand-authored plans only).
+- MCP-based tool integration, sandboxed execution, and multi-agent orchestration.
 
-Only after that passes should additional providers, advanced routing, context compaction, stronger sandboxing, deployment automation, and multi-agent execution be added.
+This list reflects what has been built and tested in this repository, not a roadmap percentage.
 
-## Final status
+## Free / Cheap-First Philosophy
 
-The architecture is no longer waiting for another research phase.
+Neptune's economic objective is to build the strongest practical agent infrastructure from free and low-cost resources, while keeping a working baseline that costs nothing to run.
 
-**Neptune Bible v0.7 is the frozen implementation handoff.**
+That means preferring open-source components where they're adequate, treating provider free tiers as optional capacity rather than a dependency, and favoring local or self-hosted alternatives (e.g. local Postgres via Docker) where they hold up. Every provider and resource sits behind a contract specifically so it can be replaced without touching core logic.
 
+Temporary credits or promotional access (cloud trial credits, limited-time API keys) are useful burst capital, but they are never treated as an architectural foundation — nothing in the core design assumes they'll still be available tomorrow.
 
-## Development methodology
+## Repository Guide
 
-Neptune is initially built by two Claude implementation accounts under a director layer.
+- `01_BIBLE/` — the authoritative internal specification: vision, architecture, and frozen principles.
+- `02_ARCHITECTURE/` — canonical component relationships, dependency direction, and data flow.
+- `03_CONTRACTS/` — the interface contracts each component must satisfy (Model, Provider, Tool, Runtime, etc.).
+- `05_DECISIONS/` — ADRs recording every frozen architectural decision.
+- `06_REGISTRIES/` — provider/model/resource/tool catalogs and their YAML seed data.
+- `14_DEVELOPMENT_ORCHESTRATION/` — the two-agent (Claude A / Claude B) development methodology used to build Neptune itself.
+- `src/` — implementation: `core/` (domain, contracts, runtime, registry, resolution, planning), `neptune/` (Model Gateway, providers, tools, observation loop), `infrastructure/` (persistence).
+- `tests/` — unit, contract, and integration tests, including live-provider and live-Postgres suites (skip automatically without credentials).
+- `DEVELOPMENT_STATE/` — machine-readable task assignments, dependencies, and decisions tracking parallel development.
 
-- **Claude A:** Core / Control Plane
-- **Claude B:** Infrastructure / Integration
-- **Human operator + ChatGPT:** directors
+## Current Next Milestone
 
-Both accounts receive the same Bible and repository. The account is then explicitly identified as A or B and follows the corresponding role.
+Wire the validated Model Gateway into the Runtime so a live provider drives real agent turns end-to-end, and complete the legacy registry cutover so all production code paths read from the canonical registry. Both are scoped and tracked in `DEVELOPMENT_STATE/dependencies.yaml` and `DIRECTOR_LEGACY_REGISTRY_AUDIT.md`.
 
-This is a development methodology, not a Neptune runtime feature.
+## Deep Documentation
 
-See `14_DEVELOPMENT_ORCHESTRATION/`.
+This README is intentionally a landing page. For the full specification, design rationale, and internal build methodology, see:
+
+- `01_BIBLE/` — the Neptune Bible (vision, architecture, contracts index)
+- `02_ARCHITECTURE/` and `03_CONTRACTS/` — architecture and interface detail
+- `05_DECISIONS/00_ADR_INDEX.md` — every architectural decision, in order
+- `14_DEVELOPMENT_ORCHESTRATION/` — the internal build methodology (two-agent development, work allocation, director control, git protocol)
+- `docs/BUILD_METHODOLOGY.md` — reading order, authority order, and the first-build sequence
+- `DEVELOPMENT_STATE/` — live task assignments and dependency tracking
