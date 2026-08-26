@@ -189,8 +189,10 @@ decisions:
       with a deterministic natural-language template (sorted-key JSON
       for success, "failed (outcome): message" for failure). Full
       rationale and consequences recorded in
-      05_DECISIONS/ADR-039-observation-feedback-format.md (renumbered
-      from ADR-037 during B-006 -- see B-DEC-017) rather than
+      05_DECISIONS/ADR-043-observation-feedback-format.md (renumbered
+      from ADR-037 during B-006, from ADR-039 during the C-002
+      correction sprint, and from ADR-041 during C-005 -- see
+      B-DEC-017, C-DEC-001, C-DEC-004) rather than
       only here, since this is a format decision future tasks need to
       find without reading DEVELOPMENT_STATE history.
     reversible: true
@@ -473,7 +475,175 @@ decisions:
       no Core-side equivalent to pass through, so a clearly-labeled
       placeholder ("{session_id}-pending-turn") is used -- it carries
       no functional meaning on either side. Full rationale and
-      consequences in 05_DECISIONS/ADR-040-toolport-attribution-seam.md.
+      consequences in 05_DECISIONS/ADR-044-toolport-attribution-seam.md
+      (renumbered from ADR-040 during the C-002 correction sprint,
+      then from ADR-042 during merge-conflict resolution when
+      worker/claude-b was merged into worker/claude-a -- see
+      C-DEC-001 and the merge-resolution task's own decision record).
+    reversible: true
+
+
+  - id: C-DEC-001
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Second ADR-numbering collision found and fixed (first was the
+      ADR-037 collision resolved during B-006, B-DEC-017). Claude A
+      independently merged worker/claude-b into worker/claude-a
+      (commit 42b3cd1) while, in parallel, Claude A's own A-006/A-007
+      work had independently claimed ADR-039
+      (resolution-layer-selection-policy.md) and ADR-040
+      (plan-executor-policy.md) -- the same numbers Claude B's
+      B-005/B-006 work had claimed (observation-feedback-format.md,
+      toolport-attribution-seam.md) after the first collision's fix.
+      Fast-forward merged origin/worker/claude-a's latest (42b3cd1)
+      into worker/claude-b (zero conflicts -- worker/claude-b's prior
+      commit was already an ancestor). Resolved by renumbering
+      Claude B's two ADRs to ADR-041 and ADR-042 (next free numbers),
+      leaving Claude A's ADR-039/ADR-040 untouched, consistent with
+      the same rationale used for the first collision: avoid touching
+      content the other lane's own in-progress work may already
+      reference. Updated every reference (00_ADR_INDEX.md,
+      DEVELOPMENT_STATE/assignments.yaml, decisions.yaml,
+      src/neptune/application/observation_loop.py). Verified
+      programmatically: all 42 ADR files (001-042) have unique,
+      sequential numbers with no gaps, and 00_ADR_INDEX.md's entries
+      exactly match the filesystem (set equality confirmed via
+      script, not just visual inspection).
+    reversible: true
+    note: >
+      Second occurrence of the same class of problem as B-DEC-017.
+      Recommend the director consider a lighter-weight ADR-number
+      reservation mechanism (e.g. a single shared NEXT_ADR_NUMBER
+      counter in DEVELOPMENT_STATE, claimed atomically) if the
+      two-agent methodology continues to develop both lanes in
+      parallel without frequent cross-branch syncs -- this is the
+      second time in three tasks that isolated branches have produced
+      the same collision independently.
+
+  - id: C-DEC-002
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Added requests>=2.31,<3.0 to requirements.txt -- the only
+      dependency-declaration file in the repository (confirmed no
+      pyproject.toml/setup.py/poetry.lock/Pipfile exist anywhere via
+      a full repository search). requests is imported in exactly two
+      places: src/neptune/infrastructure/providers/groq_adapter.py
+      (production, B-003) and tests/test_groq_adapter_mocked.py
+      (test, for requests.exceptions.Timeout/ConnectionError).
+      Verified via a genuinely fresh virtual environment
+      (python -m venv, pip install -r requirements.txt only, no
+      packages carried over from the ambient environment): pip
+      install succeeded, `pytest --collect-only` collected all 148
+      tests with zero collection errors, and the full suite ran 136
+      passed / 12 skipped -- identical to the pre-fix ambient-
+      environment baseline. All 12 skips have clean, correctly-
+      attributed non-dependency reasons (8x "Postgres not reachable",
+      4x "GROQ_API_KEY not set") -- none are masked import/dependency
+      failures. The venv itself was deleted after verification, never
+      committed.
+    reversible: true
+    note: >
+      Docker Desktop was not running during this session's fresh-venv
+      verification (confirmed via `docker ps` failing to reach the
+      daemon), which is why the 8 Postgres-dependent integration
+      tests skipped rather than ran. This is unrelated to the
+      dependency fix -- the same suite successfully exercised live
+      Postgres earlier in this development history (B-006) with this
+      exact dependency set. Flagged under REMAINING RISKS in the
+      final report, not treated as a defect in this correction.
+
+
+  - id: C-DEC-003
+    task_id: C-002-C-003-repository-correction-sprint
+    decision: >
+      Found and fixed one additional repository-consistency defect
+      while resolving C-002: DEVELOPMENT_STATE/assignments.yaml's
+      NEPTUNE-A-007-PLANNING-LAYER entry contained an unquoted list
+      item ("- src/core/planning/ (models.py: Goal/Plan/PlanStep/
+      StepStatus; executor.py: PlanExecutor; errors.py)") whose
+      embedded ": " sequences made the file invalid YAML --
+      yaml.safe_load raised ScannerError: "mapping values are not
+      allowed here". This predates this sprint (came in via Claude
+      A's own A-007 commit, confirmed by inspecting the line before
+      any edit of mine touched it) and was not caused by either merge
+      in this task. Fixed by quoting the entire list-item value;
+      content/meaning unchanged, only made syntactically valid.
+      Swept the remaining DEVELOPMENT_STATE/*.yaml files
+      (decisions, workers, dependencies, blockers, integration_queue)
+      for the same class of issue -- none found. Not swept beyond
+      DEVELOPMENT_STATE/, since C-002/C-003's scope is ADR cleanup and
+      the requests dependency specifically; broader repository-wide
+      YAML validation was not requested and risks scope creep into
+      files outside this sprint's mandate.
+    reversible: true
+    note: >
+      Flagging for the director: this is the kind of defect that a
+      simple CI check (`python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]"`
+      over DEVELOPMENT_STATE/*.yaml) would catch automatically before
+      merge, rather than being discovered incidentally during an
+      unrelated correction sprint.
+
+  - id: C-DEC-004
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Third independent ADR-numbering collision found and fixed
+      immediately upon merging Claude A's latest (origin/worker/
+      claude-a, commit 1184e02, C-001 audit work) into worker/claude-b:
+      Claude A had claimed ADR-041 for registry-canonical-source.md
+      while Claude B's ADR-041 (observation-feedback-format, itself
+      already renumbered twice before -- see C-DEC-001) still existed.
+      This time the merge was NOT a fast-forward (both branches had
+      independently progressed since the last sync), so a real
+      three-way merge (--no-ff) was performed; it produced zero file-
+      level conflicts (A only added new files: ADR-041-registry-
+      canonical-source.md, DIRECTOR_DECISION_REGISTRY.md,
+      DIRECTOR_REVIEW_001.md). Resolved the numbering collision the
+      same way as before: renumbered Claude B's file to ADR-043 (next
+      free number), left Claude A's ADR-041 untouched, fixed every
+      reference (00_ADR_INDEX.md -- which also hadn't been updated for
+      A's own new ADR-041, DEVELOPMENT_STATE/assignments.yaml,
+      decisions.yaml, observation_loop.py docstrings). Verified
+      programmatically: 43 ADR files, all unique/sequential, index
+      matches filesystem exactly.
+    reversible: true
+    note: >
+      This is the THIRD occurrence of this exact problem
+      (B-DEC-017, C-DEC-001, now this). Escalating the recommendation
+      from C-DEC-001: a shared ADR-number reservation mechanism is no
+      longer a nice-to-have suggestion, it is a recurring, entirely
+      predictable failure mode of the current two-agent methodology
+      whenever both lanes add architectural decisions between syncs.
+      Recommend the director treat this as a required process fix,
+      not an optional one, before authorizing further parallel work.
+
+  - id: C-DEC-005
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Produced DIRECTOR_LEGACY_REGISTRY_AUDIT.md via a precise,
+      code-only scan (src/, tests/, scripts/, config/) rather than the
+      full-text repository search first attempted, which returned
+      314 hits dominated by prose in DIRECTOR_DECISION_REGISTRY.md and
+      the Bible's own conceptual-interface listing -- neither of which
+      is a real legacy-registry consumer. The narrower scan found 34
+      real hits across 12 files, all of which are individually
+      classified in the audit document. Confirmed zero DEAD/UNUSED
+      legacy-registry code exists -- every production reference is
+      load-bearing for B-003's live path.
+    reversible: true
+
+  - id: C-DEC-006
+    task_id: C-005-legacy-registry-consumer-audit
+    decision: >
+      Added tests/contract/test_neptune_core_provider_independence.py
+      after determining it is genuinely independent of C-004: it is a
+      pure static AST import scan (mirroring Claude A's existing
+      test_core_provider_independence.py exactly), touches no
+      registry data, database, or Resolution-layer code, and its only
+      dependency is the existence of src/neptune/core/*.py files,
+      which predates this task. Full rationale in the audit document
+      section 4. Verified passing (1 passed) and that it does not
+      regress the full suite (137 passed, 12 skipped, up from 136 --
+      the +1 is this new test).
     reversible: true
 
   - id: ADR-A-015
@@ -506,3 +676,48 @@ decisions:
       adapter explicitly NOT built -- next milestone per
       DIRECTOR_REVIEW_001.md/DIRECTOR_DECISION_REGISTRY.md.
     status: recorded
+
+  - id: C-DEC-007
+    task_id: NEPTUNE-MERGE-CONFLICT-RESOLUTION-ADR-CANONICALIZATION
+    decision: >
+      Fourth ADR-numbering collision found and fixed, at slot 042:
+      Claude A's C-004 (model-entity-and-registry-migration.md) vs.
+      Claude B's already-once-renumbered toolport-attribution-seam.md
+      (originally ADR-040, moved to ADR-042 by C-002/C-DEC-001 at a
+      point when 042 was free from worker/claude-b's perspective --
+      Claude A's C-004, built independently on worker/claude-a without
+      first merging in C-002's correction, claimed the same slot
+      unaware of the prior rename). Surfaced while merging
+      worker/claude-b (tip: C-005/d219796) into worker/claude-a (tip:
+      C-004/de985b7) -- the first time these two histories were
+      reconciled since C-002/C-005 were done entirely on the
+      worker/claude-b lineage. Resolved via git mv, following the
+      identical precedent used for every prior collision in this
+      project (B-006/B-DEC-017, C-002/C-DEC-001, and the
+      pre-C-005 ADR-041 collision documented in ADR-043's own
+      renumbering-note history): the already-committed Claude A file
+      stays put, Claude B's colliding file is renumbered to the next
+      free slot. ADR-042-toolport-attribution-seam.md ->
+      ADR-044-toolport-attribution-seam.md (043 was already taken by
+      the observation-feedback-format file's own prior renumbering).
+      Updated every reference: 00_ADR_INDEX.md (also added a numbering-
+      history note explaining the pattern instead of my prior C-001-era
+      note that had gone stale), DEVELOPMENT_STATE/assignments.yaml
+      (the B-006 entry's own adr: field, plus resolved that file's own
+      leftover literal `<<<<<<<`/`=======`/`>>>>>>>` conflict-marker
+      text that had been staged as file content rather than actually
+      resolved -- structurally invalid YAML-with-markers-as-strings;
+      fixed by keeping both sides' legitimate, non-conflicting entries
+      in task-ID order: C-002/C-003, C-004, C-005, this task), and this
+      file (the ADR-044 file's own internal header and renumbering-note
+      section). Confirmed via full-repository grep: zero remaining
+      references to the old "ADR-042-toolport-attribution-seam.md"
+      path or any other unresolved conflict marker anywhere in the
+      tree. Did not touch C-DEC-001's own historical narrative (its
+      description of the 041/042 assignment was accurate as of when
+      C-002 ran; the subsequent 042->044 rename is this decision's own
+      story, not a correction to that one). No runtime, registry
+      implementation, planning, provider, tool, or gateway behavior
+      changed -- confirmed by re-running the full test suite
+      post-resolution with zero regressions.
+    reversible: true

@@ -125,7 +125,7 @@ assignments:
     scope: >
       Implemented src/neptune/application/observation_loop.py:
       ObservationMessageBuilder (deterministic ToolResult ->
-      ContextMessage formatting, see ADR-039), ObservationProcessor
+      ContextMessage formatting, see ADR-041), ObservationProcessor
       (executes ToolIntents via ToolExecutor, builds follow-up
       ModelRequest), LoopResult, and run_observation_loop() driving
       Model -> ToolIntent -> ToolExecution -> Observation -> Follow-up
@@ -143,7 +143,7 @@ assignments:
       - RUNTIME_CONTRACT
       - OBSERVABILITY_CONTRACT
     runtime_modified: false
-    adr: "ADR-039-observation-feedback-format.md (renumbered from ADR-037 during B-006 merge -- see B-DEC-017)"
+    adr: "ADR-043-observation-feedback-format.md (renumbered from ADR-037 during B-006, from ADR-039 during C-002, and from ADR-041 during C-005 -- see B-DEC-017, C-DEC-001, C-DEC-004)"
     tests: "48 passed, 4 skipped (pre-existing live-credential tests, unrelated to this task)"
 
   - task_id: NEPTUNE-A-STAGE0-1-CORE
@@ -267,7 +267,7 @@ assignments:
     status: completed
     branch: worker/claude-a
     scope:
-      - src/core/planning/ (models.py: Goal/Plan/PlanStep/StepStatus; executor.py: PlanExecutor; errors.py)
+      - "src/core/planning/ (models.py: Goal/Plan/PlanStep/StepStatus; executor.py: PlanExecutor; errors.py)"
       - src/core/contracts/planning.py (PlanRepository Protocol)
       - src/infrastructure/persistence (PlanModel ORM + SqlAlchemyPlanRepository; steps persisted as JSON, no separate steps table)
       - 05_DECISIONS/ADR-040 (ordering, failure-cascade, and persistence-shape rationale)
@@ -298,7 +298,7 @@ assignments:
       tool_port_adapter.py (ToolPortAdapter) as the minimal supporting
       seam satisfying Core's ToolPort Protocol with Neptune's real
       ToolExecutor -- no contract modified on either side (see
-      ADR-040). Added tests/integration/runtime/
+      ADR-042). Added tests/integration/runtime/
       test_tool_execution_recovery.py +
       _tool_execution_recovery_script.py, extending A-005's existing
       driver-recovery test pattern.
@@ -316,8 +316,42 @@ assignments:
     registry_modified: false
     new_tools: false
     adr:
-      - "ADR-040-toolport-attribution-seam.md"
+      - "ADR-044-toolport-attribution-seam.md (renumbered from ADR-040 during C-002 correction sprint, then from ADR-042 during merge-conflict resolution -- see C-DEC-001)"
     tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."
+
+  - task_id: C-002-C-003-repository-correction-sprint
+    worker_id: B
+    title: "Repository Correction Sprint (ADR Cleanup + Dependency Cleanup)"
+    status: complete
+    authorized_by: director
+    scope: >
+      Pure correction/audit-remediation, no feature development, no
+      architecture changes, no new capabilities. C-002: found and
+      fixed a second ADR-numbering collision (ADR-039 and ADR-040
+      each independently double-claimed by both lanes) after fast-
+      forward merging Claude A's latest (42b3cd1, which itself already
+      contained a merge of worker/claude-b) into worker/claude-b;
+      renumbered Claude B's two colliding ADRs to ADR-041/ADR-042 and
+      fixed every reference; verified all 42 ADRs unique/sequential
+      and the index matches the filesystem exactly. C-003: added the
+      missing `requests` dependency to requirements.txt (the repo's
+      only dependency file); verified via a genuinely fresh venv that
+      install, test collection, and the full suite all succeed with
+      no dependency-related failures.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort
+    runtime_modified: false
+    registry_modified: false
+    new_capabilities: false
+    tests: "136 passed, 12 skipped, confirmed identically in both the ambient environment and a fresh venv built only from requirements.txt"
 
   - task_id: NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
     worker_id: A
@@ -357,3 +391,77 @@ assignments:
     adr:
       - "ADR-042-model-entity-and-registry-migration.md"
     tests: "164 passed, 4 skipped (pre-existing live-credential tests, unrelated). New Model recovery test requires live Postgres; skips cleanly if unavailable."
+
+  - task_id: C-005-legacy-registry-consumer-audit
+    worker_id: B
+    title: "Legacy Registry Consumer & Cutover Audit"
+    status: complete
+    authorized_by: director
+    scope: >
+      Audit and preparation only. No cutover performed, no
+      ModelGateway built, no RuntimeDriver/AgentRuntime/planning/
+      ToolExecutor modification, no canonical Postgres registry
+      implementation change, no provider routing redesign, no
+      providers added, no production consumers migrated. Produced
+      DIRECTOR_LEGACY_REGISTRY_AUDIT.md: complete inventory (12 files
+      classified: 5 production, 3 test, 4 migration-target-overlap,
+      3 documentation, 0 dead/unused), exact live-Groq-path dependency
+      trace (single call site: ModelGatewayService.infer()'s
+      self._registry.candidates_for(...)), canonical replacement map,
+      10-step ordered cutover sequence with explicit dependencies,
+      6 named risks, and the exact file set expected to change.
+      Added tests/contract/test_neptune_core_provider_independence.py
+      (item 4 -- determined genuinely independent of C-004, since it
+      is pure static AST import scanning with no registry/database
+      dependency; mirrors Claude A's existing
+      test_core_provider_independence.py methodology).
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.tools.ToolPort
+      - core.contracts.gateway.ModelGatewayPort
+    runtime_modified: false
+    registry_modified: false
+    cutover_performed: false
+    tests: "137 passed, 12 skipped (1 new: test_neptune_core_has_no_infrastructure_or_provider_imports)"
+
+  - task_id: NEPTUNE-MERGE-CONFLICT-RESOLUTION-ADR-CANONICALIZATION
+    worker_id: A
+    title: "Merge Conflict Resolution / ADR Canonicalization (worker/claude-b -> worker/claude-a)"
+    status: complete
+    authorized_by: director
+    scope: >
+      Pure merge-resolution/bookkeeping. No feature development, no
+      runtime/registry/planning/provider/tool/gateway behavior change.
+      Resolved a fourth ADR-numbering collision at slot 042 (Claude A's
+      C-004 model-entity-and-registry-migration.md vs. Claude B's
+      toolport-attribution-seam.md, itself already renumbered once
+      before by C-002 from its original ADR-040). Applied the same
+      precedent used for every prior collision in this project (B-006,
+      C-002, and the C-005-adjacent 041 collision): left Claude A's ADR
+      in place, renumbered Claude B's file to the next free slot
+      (ADR-044). Resolved DEVELOPMENT_STATE/assignments.yaml's own
+      merge conflict (this section) by keeping both sides' entries in
+      task-ID order -- the two sides' additions did not actually
+      conflict in content, only in simultaneous appends to the same
+      location. Fixed the C-004 assignment's own two "see ADR-042"
+      references (both already correct -- they refer to Claude A's own
+      ADR-042, unaffected by the rename) and confirmed no other file
+      referenced the old "ADR-042-toolport-attribution-seam.md" path.
+    contracts_not_modified: [] # bookkeeping only; no contract touched
+    runtime_modified: false
+    registry_implementation_modified: false
+    planning_modified: false
+    provider_modified: false
+    tool_modified: false
+    gateway_modified: false
+    files_renamed:
+      - "05_DECISIONS/ADR-042-toolport-attribution-seam.md -> 05_DECISIONS/ADR-044-toolport-attribution-seam.md"
+    pushed: false
+    tests: "see final report in conversation -- full suite run post-resolution"

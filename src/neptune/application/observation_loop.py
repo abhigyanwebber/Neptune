@@ -6,7 +6,7 @@ Converts ToolResult into model-visible observations and drives the
 
 cycle to completion, entirely through existing core abstractions
 (ModelGateway, ToolExecutor). No provider-specific logic anywhere in
-this module -- see ADR-039 for the observation message format and its
+this module -- see ADR-043 for the observation message format and its
 rationale.
 """
 
@@ -33,7 +33,7 @@ DEFAULT_MAX_TURNS = 5
 class ObservationMessageBuilder:
     """Deterministic ToolResult -> ContextMessage formatting.
 
-    See ADR-039 for the exact format and its rationale. Formatting is
+    See ADR-043 for the exact format and its rationale. Formatting is
     a pure function of the ToolResult's fields (sorted-key JSON for
     dict payloads), so the same ToolResult always produces the same
     observation text regardless of dict insertion order or call

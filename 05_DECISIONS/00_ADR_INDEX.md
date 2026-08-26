@@ -45,18 +45,23 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-036 — Isolated agent workspaces
 - ADR-037 — Core Runtime open-source evaluation
 - ADR-038 — Runtime Driver policy
-- ADR-039 — Observation feedback format
-- ADR-040 — ToolPort attribution seam (B-006 finding)
+- ADR-039 — Resolution layer provider selection policy
+- ADR-040 — Plan executor policy
 - ADR-041 — Registry canonical source (C-001)
 - ADR-042 — Canonical Model entity, Provider field migration, capability reconciliation (C-004)
+- ADR-043 — Observation feedback format (renumbered from ADR-037, then ADR-039, then ADR-041 -- see B-DEC-017, C-DEC-001, C-DEC-004)
+- ADR-044 — ToolPort attribution seam, B-006 finding (renumbered from ADR-040, then ADR-042 -- see C-DEC-001 and this merge's resolution note)
 
-**Note:** ADR-039 and ADR-040 each currently have two files under
-`05_DECISIONS/` with different content (Claude A's
-`ADR-039-resolution-layer-selection-policy.md`/
-`ADR-040-plan-executor-policy.md` vs. the entries listed above). This is a
-known, previously-flagged numbering collision (see
-`DIRECTOR_REVIEW_001.md`, Risk Register #1) from parallel branch
-development, not yet resolved. This index lists only one side per number
-pending that correction.
+**Numbering history note:** ADR-039 through ADR-044 went through several
+rounds of collisions from parallel branch development (`worker/claude-a`
+and `worker/claude-b` independently claiming the same numbers before each
+merge). Every collision was resolved the same way each time: the
+already-claimed-by-Claude-A number was left untouched, and Claude B's
+colliding file was renumbered to the next free slot, to avoid disturbing
+references in already-committed work. This index reflects the numbering
+current as of the `worker/claude-b` → `worker/claude-a` merge that
+resolved the fourth such collision (at ADR-042). Individual ADR files
+carry their own "Renumbering note" section documenting their full rename
+history where applicable.
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

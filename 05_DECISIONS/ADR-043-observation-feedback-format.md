@@ -1,4 +1,4 @@
-# ADR-039 — Observation Feedback Format
+# ADR-043 — Observation Feedback Format
 
 **Status:** PROPOSED
 
@@ -83,10 +83,13 @@ multiple tool calls per turn need to be distinguished in a way plain
 sequential text messages cannot express.
 
 ## Renumbering note
-Originally filed as ADR-037. Renamed to ADR-039 during B-006's
-worker/claude-a merge, since Claude A had independently claimed
-ADR-037 (core-runtime-open-source-evaluation.md) and ADR-038
-(runtime-driver-policy.md) on the unmerged branch -- a real number
-collision discovered only because this merge finally brought both
-ADR sequences into the same working tree. No content changed besides
-the number and this note.
+Originally filed as ADR-037, then ADR-039, then ADR-041 (see prior
+notes in git history of this file). Renamed to ADR-043 during C-005
+when a third independent collision was found: Claude A's C-001 audit
+work had, in parallel, claimed ADR-041 for
+registry-canonical-source.md. Resolved the same way each prior time:
+renumbering Claude B's ADR rather than Claude A's, to avoid touching
+content Claude A's own in-progress/director-facing work may already
+reference. No content changed besides the number and this note. See
+C-005's audit document for a recommendation that this recurring
+pattern be addressed structurally (shared ADR-number reservation).

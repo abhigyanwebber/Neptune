@@ -1,4 +1,4 @@
-# ADR-040 — ToolPort Attribution Seam (B-006 Finding)
+# ADR-044 — ToolPort Attribution Seam (B-006 Finding)
 
 **Status:** PROPOSED
 
@@ -73,3 +73,17 @@ contract is intentionally extended to pass richer call context (which
 would be a Core-side ADR, not this one), or if a future task needs
 genuine `turn_id` correlation between the two lanes' persisted
 records.
+
+## Renumbering note
+Originally filed as ADR-040. Renamed to ADR-042 during the C-002
+repository correction sprint, because Claude A had independently
+claimed ADR-040 (plan-executor-policy.md, A-007) before the branches
+were reconciled. Renamed again to ADR-044 during merge-conflict
+resolution when `worker/claude-b` (which had renumbered this file to
+042) was merged into `worker/claude-a`, because Claude A had
+independently claimed ADR-042 (model-entity-and-registry-migration.md,
+C-004) in the same slot before the branches were reconciled -- the
+identical situation as the first rename, resolved the same way each
+time: renumber Claude B's ADR rather than Claude A's, to avoid
+touching content Claude A's own already-committed work references. No
+content changed besides the number and this note, both times.
