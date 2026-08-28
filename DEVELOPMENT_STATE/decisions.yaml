@@ -475,9 +475,11 @@ decisions:
       no Core-side equivalent to pass through, so a clearly-labeled
       placeholder ("{session_id}-pending-turn") is used -- it carries
       no functional meaning on either side. Full rationale and
-      consequences in 05_DECISIONS/ADR-042-toolport-attribution-seam.md
-      (renumbered from ADR-040 during the C-002 correction sprint --
-      see C-DEC-001).
+      consequences in 05_DECISIONS/ADR-044-toolport-attribution-seam.md
+      (renumbered from ADR-040 during the C-002 correction sprint,
+      then from ADR-042 during merge-conflict resolution when
+      worker/claude-b was merged into worker/claude-a -- see
+      C-DEC-001 and the merge-resolution task's own decision record).
     reversible: true
 
 
@@ -642,4 +644,107 @@ decisions:
       section 4. Verified passing (1 passed) and that it does not
       regress the full suite (137 passed, 12 skipped, up from 136 --
       the +1 is this new test).
+    reversible: true
+
+  - id: ADR-A-015
+    made_by: claude-a
+    title: "Canonical Model entity, Provider field migration, and capability reconciliation (C-004)"
+    rationale: >
+      Full rationale in 05_DECISIONS/ADR-042-model-entity-and-registry-migration.md.
+      Summary: added core.registry.model_registry.Model (no fixed
+      vocabulary, unlike the other four registries -- model ids are
+      provider-published and open-ended) representing model_id,
+      provider_id, provider_model_name, verification metadata,
+      operational status, plus capabilities/depends_on for consistency
+      with the reconciliation and dependency-resolution work this task
+      also does. Provider extended with 7 fields migrated from the
+      deprecated B-side ProviderRecord (regions, endpoints,
+      pricing_snapshot, quota_snapshot, health_snapshot, terms_url,
+      fallback_providers); failure_history and cache_characteristics
+      deliberately NOT migrated (redundant with the existing audit trail,
+      and descriptive-only respectively). fallback_providers kept
+      distinct from depends_on -- different semantics (substitute vs.
+      prerequisite), must not be conflated in dependency resolution.
+      KNOWN_CAPABILITIES extended with summarization/classification/
+      embedding (genuinely distinct task-type capabilities); fast_general
+      and frontier_escalation deliberately rejected (cost-tier and
+      routing-policy concepts, not capabilities). registry_loader.py/
+      registry_exporter.py extended additively (model_registry optional
+      parameter) -- zero breaking changes to A-004/A-006 callers, 164
+      tests passing including a genuine two-OS-process recovery proof for
+      the new Model entity. GatewayService cutover and ModelGatewayPort
+      adapter explicitly NOT built -- next milestone per
+      DIRECTOR_REVIEW_001.md/DIRECTOR_DECISION_REGISTRY.md.
+    status: recorded
+
+  - id: C-DEC-007
+    task_id: NEPTUNE-MERGE-CONFLICT-RESOLUTION-ADR-CANONICALIZATION
+    decision: >
+      Fourth ADR-numbering collision found and fixed, at slot 042:
+      Claude A's C-004 (model-entity-and-registry-migration.md) vs.
+      Claude B's already-once-renumbered toolport-attribution-seam.md
+      (originally ADR-040, moved to ADR-042 by C-002/C-DEC-001 at a
+      point when 042 was free from worker/claude-b's perspective --
+      Claude A's C-004, built independently on worker/claude-a without
+      first merging in C-002's correction, claimed the same slot
+      unaware of the prior rename). Surfaced while merging
+      worker/claude-b (tip: C-005/d219796) into worker/claude-a (tip:
+      C-004/de985b7) -- the first time these two histories were
+      reconciled since C-002/C-005 were done entirely on the
+      worker/claude-b lineage. Resolved via git mv, following the
+      identical precedent used for every prior collision in this
+      project (B-006/B-DEC-017, C-002/C-DEC-001, and the
+      pre-C-005 ADR-041 collision documented in ADR-043's own
+      renumbering-note history): the already-committed Claude A file
+      stays put, Claude B's colliding file is renumbered to the next
+      free slot. ADR-042-toolport-attribution-seam.md ->
+      ADR-044-toolport-attribution-seam.md (043 was already taken by
+      the observation-feedback-format file's own prior renumbering).
+      Updated every reference: 00_ADR_INDEX.md (also added a numbering-
+      history note explaining the pattern instead of my prior C-001-era
+      note that had gone stale), DEVELOPMENT_STATE/assignments.yaml
+      (the B-006 entry's own adr: field, plus resolved that file's own
+      leftover literal `<<<<<<<`/`=======`/`>>>>>>>` conflict-marker
+      text that had been staged as file content rather than actually
+      resolved -- structurally invalid YAML-with-markers-as-strings;
+      fixed by keeping both sides' legitimate, non-conflicting entries
+      in task-ID order: C-002/C-003, C-004, C-005, this task), and this
+      file (the ADR-044 file's own internal header and renumbering-note
+      section). Confirmed via full-repository grep: zero remaining
+      references to the old "ADR-042-toolport-attribution-seam.md"
+      path or any other unresolved conflict marker anywhere in the
+      tree. Did not touch C-DEC-001's own historical narrative (its
+      description of the 041/042 assignment was accurate as of when
+      C-002 ran; the subsequent 042->044 rename is this decision's own
+      story, not a correction to that one). No runtime, registry
+      implementation, planning, provider, tool, or gateway behavior
+      changed -- confirmed by re-running the full test suite
+      post-resolution with zero regressions.
+    reversible: true
+
+  - id: C-DEC-008
+    task_id: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+    decision: >
+      No new ADR created for this task -- confirmed by inspection that
+      the translation this task builds (which legacy capability values
+      map 1:1 to canonical ids, which are rejected and why) was already
+      decided by ADR-042 during C-004's capability reconciliation; this
+      task mechanically implements that decision as a small, tested
+      str->str function pair (core.registry.capability_bridge), not a
+      new architectural choice. Verified the actual current vocabularies
+      directly rather than trusting earlier reports: read
+      src/neptune/core/domain/capability.py's Capability enum (10
+      values) and core/registry/capability_registry.py's
+      KNOWN_CAPABILITIES (13 values) fresh, confirmed 8 values overlap
+      by exact string identity and the 2 non-overlapping legacy values
+      are exactly ADR-042's fast_general/frontier_escalation rejections
+      -- no new capability, no new rejection, no surprise found.
+      Confirmed no current consumer of the legacy Capability enum
+      (GatewayService, CapabilityRouter, ModelRegistry, RoutingCandidate
+      -- all traced directly in src/neptune) needed any modification,
+      since none of them are being cut over to the canonical vocabulary
+      this task -- the bridge is built and tested standalone, ready for
+      a future cutover task to call, per the explicit stop condition
+      (no GatewayService redesign, no cutover, no legacy registry
+      removal this task).
     reversible: true

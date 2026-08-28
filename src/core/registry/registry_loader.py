@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 import yaml
 
 from .capability_registry import Capability, CapabilityRegistry
+from .model_registry import Model, ModelRegistry
 from .provider_registry import Provider, ProviderRegistry
 from .resource_registry import Resource, ResourceRegistry
 from .tool_registry import ToolDefinition, ToolRegistry
@@ -115,20 +116,34 @@ def load_tools(path: Path, registry: ToolRegistry) -> LoadResult:
     )
 
 
+def load_models(path: Path, registry: ModelRegistry) -> LoadResult:
+    return _load_entries(
+        path, "models", "model_id", Model, registry.get, registry.register, registry.update
+    )
+
+
 def load_registry_directory(
     directory: Path,
     capability_registry: CapabilityRegistry,
     provider_registry: ProviderRegistry,
     resource_registry: ResourceRegistry,
     tool_registry: ToolRegistry,
+    model_registry: Optional[ModelRegistry] = None,
 ) -> dict[str, LoadResult]:
-    """Loads capabilities.yaml, providers.yaml, resources.yaml, tools.yaml
-    from `directory` (any file that doesn't exist is silently skipped, so
-    a directory with only some of the four files still loads what's
-    there)."""
-    return {
+    """Loads capabilities.yaml, providers.yaml, resources.yaml, tools.yaml,
+    and (if a ModelRegistry is supplied) models.yaml from `directory` (any
+    file that doesn't exist is silently skipped, so a directory with only
+    some of the files still loads what's there).
+
+    `model_registry` is optional and keyword-friendly so existing callers
+    (A-004) that only pass the original four registries keep working
+    unmodified -- this parameter is additive, not a breaking change."""
+    results = {
         "capabilities": load_capabilities(directory / "capabilities.yaml", capability_registry),
         "providers": load_providers(directory / "providers.yaml", provider_registry),
         "resources": load_resources(directory / "resources.yaml", resource_registry),
         "tools": load_tools(directory / "tools.yaml", tool_registry),
     }
+    if model_registry is not None:
+        results["models"] = load_models(directory / "models.yaml", model_registry)
+    return results

@@ -2,6 +2,7 @@ from .gateway import ModelGatewayPort
 from .planning import PlanRepository
 from .registry import (
     CapabilityRepository,
+    ModelRepository,
     ProviderRepository,
     ResourceRepository,
     ToolDefinitionRepository,
@@ -29,5 +30,6 @@ __all__ = [
     "ProviderRepository",
     "ResourceRepository",
     "ToolDefinitionRepository",
+    "ModelRepository",
     "PlanRepository",
 ]

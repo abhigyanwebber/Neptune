@@ -55,3 +55,22 @@ capabilities:
     name: Planning
     description: "Decomposing a goal into an ordered sequence of steps."
     verification_status: candidate
+
+  # Added by C-004 capability vocabulary reconciliation (ADR-042):
+  # genuinely distinct task-type capabilities carried over from the
+  # deprecated B-side Capability enum. `fast_general` and
+  # `frontier_escalation` were deliberately rejected -- see ADR-042.
+  - capability_id: summarization
+    name: Summarization
+    description: "Condensing longer content into a shorter, faithful summary."
+    verification_status: candidate
+
+  - capability_id: classification
+    name: Classification
+    description: "Assigning input to one or more predefined categories/labels."
+    verification_status: candidate
+
+  - capability_id: embedding
+    name: Embedding
+    description: "Producing vector representations of text for retrieval/similarity."
+    verification_status: candidate

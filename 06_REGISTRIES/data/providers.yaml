@@ -32,6 +32,18 @@ providers:
       docs). Requires a Groq API key. Known incompatibilities exist
       versus the full OpenAI API surface (documented on the same page) --
       not every OpenAI client feature is supported.
+    # Operational metadata migrated from the deprecated B-side
+    # config/registries/provider_registry.yaml (C-004, ADR-042). Values
+    # below are B-003's live-validated data as of its own
+    # verification_date; re-verify before relying on pricing/quota
+    # figures in production.
+    regions: ["us"]
+    endpoints: ["https://api.groq.com/openai/v1"]
+    pricing_snapshot: "Free tier, no card required, as of 2026-08-13"
+    quota_snapshot: "Per-model RPM/TPM/RPD limits, free tier (see 06_REGISTRIES/data/models.yaml)"
+    health_snapshot: "unknown -- not live-monitored; last checked 2026-08-13"
+    terms_url: "https://groq.com/terms-of-use/"
+    fallback_providers: []
 
   - provider_id: openrouter
     name: OpenRouter

@@ -1,0 +1,35 @@
+# Model catalog seed data (C-004).
+#
+# Migrated from the deprecated config/registries/model_registry.yaml
+# (B-001/B-003). Per ADR-042, only the fields the canonical Model entity
+# actually has are represented as structured fields; B's additional
+# per-model fields (context_limit, tool_calling, structured_output,
+# cost_class, quota, preferred_roles) are descriptive-only for this
+# entity today and are folded into `notes` rather than given dedicated
+# columns, matching the same reasoning already applied to
+# Provider.cache_characteristics in ADR-042.
+#
+# `capabilities` below drops "fast_general" from the original B-side
+# entry -- rejected as a capability-vocabulary member by ADR-042 (it
+# describes a cost/latency tier, not a task-type capability).
+
+models:
+  - model_id: groq-llama-3.3-70b-versatile
+    provider_id: groq
+    provider_model_name: llama-3.3-70b-versatile
+    capabilities: [tool_use, coding, summarization, classification]
+    status: available
+    depends_on: [groq]
+    verification_date: "2026-08-13"
+    verification_source: "B-003 live validation against the real Groq API (see DEVELOPMENT_STATE/decisions.yaml, B-DEC-010)"
+    verification_status: verified
+    notes: >
+      Reference candidate for the first single-provider vertical slice
+      (ADR-033). context_limit: 131072 tokens. tool_calling: true.
+      structured_output: true. cost_class: free. quota (as of
+      verification_date, provider-published, not load-tested): ~30
+      requests/min, ~6000 tokens/min, ~1000 requests/day on the free
+      tier, subject to change. preferred_roles (B-side routing hint,
+      not yet consumed by anything canonical): coder, extraction_worker.
+      No card required for the free tier. Not an architectural
+      dependency -- fully replaceable behind ProviderAdapter.

@@ -316,9 +316,8 @@ assignments:
     registry_modified: false
     new_tools: false
     adr:
-      - "ADR-042-toolport-attribution-seam.md (renumbered from ADR-040 during C-002 correction sprint -- see C-DEC-001)"
+      - "ADR-044-toolport-attribution-seam.md (renumbered from ADR-040 during C-002 correction sprint, then from ADR-042 during merge-conflict resolution -- see C-DEC-001)"
     tests: "112 passed, 4 skipped (pre-existing live-credential tests, unrelated). New test requires live Postgres (docker compose up -d); skips cleanly if unavailable."
-
 
   - task_id: C-002-C-003-repository-correction-sprint
     worker_id: B
@@ -354,6 +353,44 @@ assignments:
     new_capabilities: false
     tests: "136 passed, 12 skipped, confirmed identically in both the ambient environment and a fresh venv built only from requirements.txt"
 
+  - task_id: NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
+    worker_id: A
+    title: "Canonical Registry Migration"
+    status: complete
+    authorized_by: director
+    depends_on: [C-001, C-002, C-003]
+    scope: >
+      Implemented the first half of registry consolidation identified by
+      C-001/ADR-041: added a canonical Model entity
+      (src/core/registry/model_registry.py + ModelModel ORM +
+      SqlAlchemyModelRepository), extended Provider with 7 fields migrated
+      from the deprecated B-side ProviderRecord (regions, endpoints,
+      pricing_snapshot, quota_snapshot, health_snapshot, terms_url,
+      fallback_providers -- 2 fields deliberately not migrated, see
+      ADR-042), reconciled the capability vocabulary (added summarization/
+      classification/embedding, rejected fast_general/frontier_escalation,
+      see ADR-042), and migrated the one real Groq model/provider entry
+      from config/registries/*.yaml into 06_REGISTRIES/data/{models,providers}.yaml.
+      registry_loader.py/registry_exporter.py extended additively
+      (model_registry is an optional parameter; existing callers
+      unaffected). Existing verification/audit/dependency-resolution
+      mechanisms preserved unchanged, applied to the new Model entity via
+      the same generic resolve_dependencies() used by every other entity
+      type.
+    contracts_not_modified:
+      - MODEL_GATEWAY (not built, per explicit stop condition)
+      - RuntimeDriver / AgentRuntime (untouched)
+      - planning (untouched)
+      - ToolExecutor / ObservationLoop (untouched)
+      - neptune.core.domain.capability.Capability (B-side enum untouched; reconciliation applied only to the canonical KNOWN_CAPABILITIES)
+    runtime_modified: false
+    resolution_modified: false
+    gateway_service_cutover: false
+    yaml_registry_removed: false
+    deprecated_yaml_still_functional: true
+    adr:
+      - "ADR-042-model-entity-and-registry-migration.md"
+    tests: "164 passed, 4 skipped (pre-existing live-credential tests, unrelated). New Model recovery test requires live Postgres; skips cleanly if unavailable."
 
   - task_id: C-005-legacy-registry-consumer-audit
     worker_id: B
@@ -393,3 +430,85 @@ assignments:
     registry_modified: false
     cutover_performed: false
     tests: "137 passed, 12 skipped (1 new: test_neptune_core_has_no_infrastructure_or_provider_imports)"
+
+  - task_id: NEPTUNE-MERGE-CONFLICT-RESOLUTION-ADR-CANONICALIZATION
+    worker_id: A
+    title: "Merge Conflict Resolution / ADR Canonicalization (worker/claude-b -> worker/claude-a)"
+    status: complete
+    authorized_by: director
+    scope: >
+      Pure merge-resolution/bookkeeping. No feature development, no
+      runtime/registry/planning/provider/tool/gateway behavior change.
+      Resolved a fourth ADR-numbering collision at slot 042 (Claude A's
+      C-004 model-entity-and-registry-migration.md vs. Claude B's
+      toolport-attribution-seam.md, itself already renumbered once
+      before by C-002 from its original ADR-040). Applied the same
+      precedent used for every prior collision in this project (B-006,
+      C-002, and the C-005-adjacent 041 collision): left Claude A's ADR
+      in place, renumbered Claude B's file to the next free slot
+      (ADR-044). Resolved DEVELOPMENT_STATE/assignments.yaml's own
+      merge conflict (this section) by keeping both sides' entries in
+      task-ID order -- the two sides' additions did not actually
+      conflict in content, only in simultaneous appends to the same
+      location. Fixed the C-004 assignment's own two "see ADR-042"
+      references (both already correct -- they refer to Claude A's own
+      ADR-042, unaffected by the rename) and confirmed no other file
+      referenced the old "ADR-042-toolport-attribution-seam.md" path.
+    contracts_not_modified: [] # bookkeeping only; no contract touched
+    runtime_modified: false
+    registry_implementation_modified: false
+    planning_modified: false
+    provider_modified: false
+    tool_modified: false
+    gateway_modified: false
+    files_renamed:
+      - "05_DECISIONS/ADR-042-toolport-attribution-seam.md -> 05_DECISIONS/ADR-044-toolport-attribution-seam.md"
+    pushed: false
+    tests: "see final report in conversation -- full suite run post-resolution"
+
+  - task_id: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+    worker_id: A
+    title: "Canonical Capability Vocabulary Bridge"
+    status: complete
+    authorized_by: director
+    depends_on: [C-001, C-002, C-003, C-004, C-005]
+    scope: >
+      Built src/core/registry/capability_bridge.py: a pure str->str
+      translation function (translate_capability/translate_capabilities)
+      between the legacy/B-side capability vocabulary
+      (neptune.core.domain.capability.Capability, verified directly
+      against the actual enum, not assumed from earlier reports -- 10
+      values) and the canonical vocabulary
+      (core.registry.capability_registry.KNOWN_CAPABILITIES, 13 values).
+      Inspection found 8 of the 10 legacy values already match a
+      canonical id by exact string identity (coding, reasoning,
+      planning, summarization, classification, tool_use, vision,
+      embedding -- the last 3 were added to the canonical vocabulary
+      specifically because of this overlap, during C-004/ADR-042); the
+      remaining 2 (fast_general, frontier_escalation) were already
+      evaluated and rejected as capability-vocabulary members by
+      ADR-042, so the bridge enforces that rejection with a specific,
+      explanatory error (RejectedExternalCapabilityError) rather than a
+      generic unknown-capability error. Canonical-only ids (web_search,
+      mcp, browser, terminal, memory -- no legacy representation) pass
+      through unchanged (idempotent). translate_capabilities()
+      deduplicates while preserving first-seen order. The bridge module
+      imports nothing from src/neptune -- operates on plain strings on
+      both sides, so src/core never depends on the legacy enum or any
+      provider-specific type. Did NOT modify GatewayService, Router,
+      capability_router.py, or the legacy Capability enum itself -- the
+      bridge is a standalone utility ready for a future GatewayService
+      cutover task to wire in, not wired in itself (explicit stop
+      condition: no cutover this task).
+    contracts_not_modified:
+      - MODEL_GATEWAY (not built)
+      - RuntimeDriver / AgentRuntime (untouched)
+      - GatewayService / Router / capability_router.py (untouched -- no redesign, no cutover)
+      - planning (untouched)
+      - ToolExecutor / ObservationLoop (untouched)
+      - neptune.core.domain.capability.Capability (untouched -- bridge translates around it, does not modify it)
+    runtime_modified: false
+    gateway_service_cutover: false
+    legacy_registry_removed: false
+    new_adr: false # mechanically implements ADR-042's already-decided reconciliation; not a new architectural decision
+    tests: "197 passed, 4 skipped (pre-existing live-credential tests, unrelated) with live Postgres available. 32 new tests (27 unit + 5 integration-level) for the bridge itself, zero regressions. Full collection: 201 tests, zero collection errors."

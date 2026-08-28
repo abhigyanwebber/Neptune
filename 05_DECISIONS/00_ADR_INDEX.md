@@ -47,8 +47,21 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-038 — Runtime Driver policy
 - ADR-039 — Resolution layer provider selection policy
 - ADR-040 — Plan executor policy
-- ADR-041 — Registry canonical source
-- ADR-042 — ToolPort attribution seam (B-006 finding)
-- ADR-043 — Observation feedback format
+- ADR-041 — Registry canonical source (C-001)
+- ADR-042 — Canonical Model entity, Provider field migration, capability reconciliation (C-004)
+- ADR-043 — Observation feedback format (renumbered from ADR-037, then ADR-039, then ADR-041 -- see B-DEC-017, C-DEC-001, C-DEC-004)
+- ADR-044 — ToolPort attribution seam, B-006 finding (renumbered from ADR-040, then ADR-042 -- see C-DEC-001 and this merge's resolution note)
+
+**Numbering history note:** ADR-039 through ADR-044 went through several
+rounds of collisions from parallel branch development (`worker/claude-a`
+and `worker/claude-b` independently claiming the same numbers before each
+merge). Every collision was resolved the same way each time: the
+already-claimed-by-Claude-A number was left untouched, and Claude B's
+colliding file was renumbered to the next free slot, to avoid disturbing
+references in already-committed work. This index reflects the numbering
+current as of the `worker/claude-b` → `worker/claude-a` merge that
+resolved the fourth such collision (at ADR-042). Individual ADR files
+carry their own "Renumbering note" section documenting their full rename
+history where applicable.
 
 When a reference implementation choice is replaced, preserve the architectural contract and record the replacement decision.

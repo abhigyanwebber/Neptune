@@ -2,9 +2,11 @@ import pytest
 from sqlalchemy import create_engine
 
 from core.registry.capability_registry import CapabilityRegistry
+from core.registry.model_registry import ModelRegistry
 from core.registry.provider_registry import ProviderRegistry
 from core.registry.registry_loader import (
     load_capabilities,
+    load_models,
     load_providers,
     load_registry_directory,
     load_resources,
@@ -15,6 +17,7 @@ from core.registry.tool_registry import ToolRegistry
 from infrastructure.persistence.database import create_all_tables, make_session_factory
 from infrastructure.persistence.repositories import (
     SqlAlchemyCapabilityRepository,
+    SqlAlchemyModelRepository,
     SqlAlchemyProviderRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyToolDefinitionRepository,
@@ -33,11 +36,12 @@ def registries():
         ProviderRegistry(SqlAlchemyProviderRepository(sf)),
         ResourceRegistry(SqlAlchemyResourceRepository(sf)),
         ToolRegistry(SqlAlchemyToolDefinitionRepository(sf)),
+        ModelRegistry(SqlAlchemyModelRepository(sf)),
     )
 
 
 def test_load_providers_from_yaml(tmp_path, registries):
-    _, provider_registry, _, _ = registries
+    _, provider_registry, _, _, _ = registries
     yaml_path = tmp_path / "providers.yaml"
     yaml_path.write_text(
         """
@@ -59,7 +63,7 @@ providers:
 
 
 def test_reloading_same_file_updates_instead_of_duplicating(tmp_path, registries):
-    _, provider_registry, _, _ = registries
+    _, provider_registry, _, _, _ = registries
     yaml_path = tmp_path / "providers.yaml"
     yaml_path.write_text("providers:\n  - provider_id: groq\n    name: Groq\n")
 
@@ -76,7 +80,7 @@ def test_reloading_same_file_updates_instead_of_duplicating(tmp_path, registries
 
 
 def test_load_rejects_unknown_vocabulary_and_continues(tmp_path, registries):
-    _, provider_registry, _, _ = registries
+    _, provider_registry, _, _, _ = registries
     yaml_path = tmp_path / "providers.yaml"
     yaml_path.write_text(
         """
@@ -94,14 +98,14 @@ providers:
 
 
 def test_load_missing_file_is_a_noop(tmp_path, registries):
-    _, provider_registry, _, _ = registries
+    _, provider_registry, _, _, _ = registries
     result = load_providers(tmp_path / "does-not-exist.yaml", provider_registry)
     assert result.total == 0
     assert result.errors == []
 
 
 def test_load_capabilities_resources_tools(tmp_path, registries):
-    capability_registry, _, resource_registry, tool_registry = registries
+    capability_registry, _, resource_registry, tool_registry, _ = registries
 
     (tmp_path / "capabilities.yaml").write_text(
         "capabilities:\n  - capability_id: coding\n    name: Coding\n"
@@ -122,8 +126,29 @@ def test_load_capabilities_resources_tools(tmp_path, registries):
     assert tool_result.registered == ["terminal"]
 
 
-def test_load_registry_directory_loads_all_four(tmp_path, registries):
-    capability_registry, provider_registry, resource_registry, tool_registry = registries
+def test_load_models_from_yaml(tmp_path, registries):
+    _, _, _, _, model_registry = registries
+    yaml_path = tmp_path / "models.yaml"
+    yaml_path.write_text(
+        """
+models:
+  - model_id: groq-llama-3.3-70b-versatile
+    provider_id: groq
+    provider_model_name: llama-3.3-70b-versatile
+    capabilities: [coding, tool_use]
+"""
+    )
+    result = load_models(yaml_path, model_registry)
+    assert result.registered == ["groq-llama-3.3-70b-versatile"]
+    assert result.errors == []
+
+    model = model_registry.get("groq-llama-3.3-70b-versatile")
+    assert model.provider_id == "groq"
+    assert model.provider_model_name == "llama-3.3-70b-versatile"
+
+
+def test_load_registry_directory_loads_all_five(tmp_path, registries):
+    capability_registry, provider_registry, resource_registry, tool_registry, model_registry = registries
 
     (tmp_path / "capabilities.yaml").write_text(
         "capabilities:\n  - capability_id: coding\n    name: Coding\n"
@@ -135,21 +160,44 @@ def test_load_registry_directory_loads_all_four(tmp_path, registries):
     (tmp_path / "tools.yaml").write_text(
         "tools:\n  - tool_id: terminal\n    name: Terminal\n    capability: terminal\n"
     )
+    (tmp_path / "models.yaml").write_text(
+        "models:\n  - model_id: m1\n    provider_id: groq\n    provider_model_name: x\n"
+    )
 
     results = load_registry_directory(
-        tmp_path, capability_registry, provider_registry, resource_registry, tool_registry
+        tmp_path,
+        capability_registry,
+        provider_registry,
+        resource_registry,
+        tool_registry,
+        model_registry=model_registry,
     )
     assert results["capabilities"].registered == ["coding"]
     assert results["providers"].registered == ["groq"]
     assert results["resources"].registered == ["docker"]
     assert results["tools"].registered == ["terminal"]
+    assert results["models"].registered == ["m1"]
+
+
+def test_load_registry_directory_without_model_registry_still_works(tmp_path, registries):
+    # Backward compatibility: existing A-004 callers that don't pass
+    # model_registry must keep working unmodified (additive parameter).
+    capability_registry, provider_registry, resource_registry, tool_registry, _ = registries
+
+    (tmp_path / "providers.yaml").write_text("providers:\n  - provider_id: groq\n    name: Groq\n")
+
+    results = load_registry_directory(
+        tmp_path, capability_registry, provider_registry, resource_registry, tool_registry
+    )
+    assert "models" not in results
+    assert results["providers"].registered == ["groq"]
 
 
 def test_load_real_seed_providers_yaml(registries):
     """The actual verified-facts seed data at 06_REGISTRIES/data/providers.yaml
-    loads cleanly with no errors and produces all five entries the
-    director asked for."""
-    _, provider_registry, _, _ = registries
+    loads cleanly with no errors and produces all five entries, now
+    including the C-004 operational metadata migration on groq."""
+    _, provider_registry, _, _, _ = registries
     result = load_providers(REPO_ROOT_DATA_DIR / "providers.yaml", provider_registry)
     assert result.errors == []
     assert set(result.registered) == {"groq", "openrouter", "gemini", "ollama", "openai_compatible"}
@@ -157,3 +205,25 @@ def test_load_real_seed_providers_yaml(registries):
     groq = provider_registry.get("groq")
     assert groq.verification_status == "verified"
     assert "api.groq.com/openai/v1" in groq.notes
+    assert groq.endpoints == ["https://api.groq.com/openai/v1"]
+    assert groq.regions == ["us"]
+    assert groq.terms_url == "https://groq.com/terms-of-use/"
+
+
+def test_load_real_seed_models_yaml(registries):
+    """The actual migrated model seed data at 06_REGISTRIES/data/models.yaml
+    loads cleanly and matches the values migrated from the deprecated
+    config/registries/model_registry.yaml (C-004)."""
+    _, _, _, _, model_registry = registries
+    result = load_models(REPO_ROOT_DATA_DIR / "models.yaml", model_registry)
+    assert result.errors == []
+    assert result.registered == ["groq-llama-3.3-70b-versatile"]
+
+    model = model_registry.get("groq-llama-3.3-70b-versatile")
+    assert model.provider_id == "groq"
+    assert model.provider_model_name == "llama-3.3-70b-versatile"
+    assert model.status == "available"
+    assert model.verification_status == "verified"
+    # fast_general deliberately dropped per ADR-042 -- must not appear.
+    assert "fast_general" not in model.capabilities
+    assert set(model.capabilities) == {"tool_use", "coding", "summarization", "classification"}

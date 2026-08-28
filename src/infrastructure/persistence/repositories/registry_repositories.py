@@ -14,12 +14,14 @@ from sqlalchemy.orm import Session as SqlAlchemySession
 from sqlalchemy.orm import sessionmaker
 
 from core.registry.capability_registry import Capability
+from core.registry.model_registry import Model
 from core.registry.provider_registry import Provider
 from core.registry.resource_registry import Resource
 from core.registry.tool_registry import ToolDefinition
 
 from ..models.orm import (
     CapabilityModel,
+    ModelModel,
     ProviderModel,
     ResourceModel,
     ToolDefinitionModel,
@@ -167,6 +169,45 @@ class SqlAlchemyToolDefinitionRepository:
             return [_model_to_tool(m) for m in db.scalars(select(ToolDefinitionModel))]
 
 
+class SqlAlchemyModelRepository:
+    def __init__(self, session_factory: sessionmaker[SqlAlchemySession]) -> None:
+        self._session_factory = session_factory
+
+    def create(self, model: Model) -> None:
+        with self._session_factory() as db:
+            db.add(_model_to_orm(model))
+            db.commit()
+
+    def get(self, model_id: str) -> Optional[Model]:
+        with self._session_factory() as db:
+            row = db.get(ModelModel, model_id)
+            return _orm_to_model(row) if row else None
+
+    def update(self, model: Model) -> None:
+        with self._session_factory() as db:
+            row = db.get(ModelModel, model.model_id)
+            if row is None:
+                raise ValueError(f"Model not found: {model.model_id}")
+            _apply_model_to_orm(model, row)
+            db.commit()
+
+    def delete(self, model_id: str) -> None:
+        with self._session_factory() as db:
+            row = db.get(ModelModel, model_id)
+            if row is not None:
+                db.delete(row)
+                db.commit()
+
+    def list_all(self) -> list[Model]:
+        with self._session_factory() as db:
+            return [_orm_to_model(m) for m in db.scalars(select(ModelModel))]
+
+    def list_for_provider(self, provider_id: str) -> list[Model]:
+        with self._session_factory() as db:
+            stmt = select(ModelModel).where(ModelModel.provider_id == provider_id)
+            return [_orm_to_model(m) for m in db.scalars(stmt)]
+
+
 # ---------------------------------------------------------------------------
 # Conversion helpers
 # ---------------------------------------------------------------------------
@@ -208,6 +249,13 @@ def _provider_to_model(p: Provider) -> ProviderModel:
         verification_source=p.verification_source,
         verification_status=p.verification_status,
         last_checked=p.last_checked,
+        regions=p.regions,
+        endpoints=p.endpoints,
+        pricing_snapshot=p.pricing_snapshot,
+        quota_snapshot=p.quota_snapshot,
+        health_snapshot=p.health_snapshot,
+        terms_url=p.terms_url,
+        fallback_providers=p.fallback_providers,
     )
 
 
@@ -222,6 +270,13 @@ def _apply_provider_to_model(p: Provider, m: ProviderModel) -> None:
     m.verification_source = p.verification_source
     m.verification_status = p.verification_status
     m.last_checked = p.last_checked
+    m.regions = p.regions
+    m.endpoints = p.endpoints
+    m.pricing_snapshot = p.pricing_snapshot
+    m.quota_snapshot = p.quota_snapshot
+    m.health_snapshot = p.health_snapshot
+    m.terms_url = p.terms_url
+    m.fallback_providers = p.fallback_providers
 
 
 def _model_to_provider(m: ProviderModel) -> Provider:
@@ -237,6 +292,13 @@ def _model_to_provider(m: ProviderModel) -> Provider:
         verification_source=m.verification_source,
         verification_status=m.verification_status,
         last_checked=m.last_checked,
+        regions=list(m.regions or []),
+        endpoints=list(m.endpoints or []),
+        pricing_snapshot=m.pricing_snapshot,
+        quota_snapshot=m.quota_snapshot,
+        health_snapshot=m.health_snapshot,
+        terms_url=m.terms_url,
+        fallback_providers=list(m.fallback_providers or []),
     )
 
 
@@ -324,4 +386,49 @@ def _model_to_tool(m: ToolDefinitionModel) -> ToolDefinition:
         verification_source=m.verification_source,
         verification_status=m.verification_status,
         last_checked=m.last_checked,
+    )
+
+
+def _model_to_orm(m: Model) -> ModelModel:
+    return ModelModel(
+        model_id=m.model_id,
+        provider_id=m.provider_id,
+        provider_model_name=m.provider_model_name,
+        capabilities=m.capabilities,
+        status=m.status,
+        depends_on=m.depends_on,
+        verification_date=m.verification_date,
+        notes=m.notes,
+        verification_source=m.verification_source,
+        verification_status=m.verification_status,
+        last_checked=m.last_checked,
+    )
+
+
+def _apply_model_to_orm(m: Model, row: ModelModel) -> None:
+    row.provider_id = m.provider_id
+    row.provider_model_name = m.provider_model_name
+    row.capabilities = m.capabilities
+    row.status = m.status
+    row.depends_on = m.depends_on
+    row.verification_date = m.verification_date
+    row.notes = m.notes
+    row.verification_source = m.verification_source
+    row.verification_status = m.verification_status
+    row.last_checked = m.last_checked
+
+
+def _orm_to_model(row: ModelModel) -> Model:
+    return Model(
+        model_id=row.model_id,
+        provider_id=row.provider_id,
+        provider_model_name=row.provider_model_name,
+        capabilities=list(row.capabilities or []),
+        status=row.status,
+        depends_on=list(row.depends_on or []),
+        verification_date=row.verification_date,
+        notes=row.notes,
+        verification_source=row.verification_source,
+        verification_status=row.verification_status,
+        last_checked=row.last_checked,
     )
