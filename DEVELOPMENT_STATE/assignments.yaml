@@ -465,3 +465,50 @@ assignments:
       - "05_DECISIONS/ADR-042-toolport-attribution-seam.md -> 05_DECISIONS/ADR-044-toolport-attribution-seam.md"
     pushed: false
     tests: "see final report in conversation -- full suite run post-resolution"
+
+  - task_id: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+    worker_id: A
+    title: "Canonical Capability Vocabulary Bridge"
+    status: complete
+    authorized_by: director
+    depends_on: [C-001, C-002, C-003, C-004, C-005]
+    scope: >
+      Built src/core/registry/capability_bridge.py: a pure str->str
+      translation function (translate_capability/translate_capabilities)
+      between the legacy/B-side capability vocabulary
+      (neptune.core.domain.capability.Capability, verified directly
+      against the actual enum, not assumed from earlier reports -- 10
+      values) and the canonical vocabulary
+      (core.registry.capability_registry.KNOWN_CAPABILITIES, 13 values).
+      Inspection found 8 of the 10 legacy values already match a
+      canonical id by exact string identity (coding, reasoning,
+      planning, summarization, classification, tool_use, vision,
+      embedding -- the last 3 were added to the canonical vocabulary
+      specifically because of this overlap, during C-004/ADR-042); the
+      remaining 2 (fast_general, frontier_escalation) were already
+      evaluated and rejected as capability-vocabulary members by
+      ADR-042, so the bridge enforces that rejection with a specific,
+      explanatory error (RejectedExternalCapabilityError) rather than a
+      generic unknown-capability error. Canonical-only ids (web_search,
+      mcp, browser, terminal, memory -- no legacy representation) pass
+      through unchanged (idempotent). translate_capabilities()
+      deduplicates while preserving first-seen order. The bridge module
+      imports nothing from src/neptune -- operates on plain strings on
+      both sides, so src/core never depends on the legacy enum or any
+      provider-specific type. Did NOT modify GatewayService, Router,
+      capability_router.py, or the legacy Capability enum itself -- the
+      bridge is a standalone utility ready for a future GatewayService
+      cutover task to wire in, not wired in itself (explicit stop
+      condition: no cutover this task).
+    contracts_not_modified:
+      - MODEL_GATEWAY (not built)
+      - RuntimeDriver / AgentRuntime (untouched)
+      - GatewayService / Router / capability_router.py (untouched -- no redesign, no cutover)
+      - planning (untouched)
+      - ToolExecutor / ObservationLoop (untouched)
+      - neptune.core.domain.capability.Capability (untouched -- bridge translates around it, does not modify it)
+    runtime_modified: false
+    gateway_service_cutover: false
+    legacy_registry_removed: false
+    new_adr: false # mechanically implements ADR-042's already-decided reconciliation; not a new architectural decision
+    tests: "197 passed, 4 skipped (pre-existing live-credential tests, unrelated) with live Postgres available. 32 new tests (27 unit + 5 integration-level) for the bridge itself, zero regressions. Full collection: 201 tests, zero collection errors."

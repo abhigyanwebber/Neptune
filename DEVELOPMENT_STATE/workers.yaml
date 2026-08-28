@@ -2,7 +2,7 @@ workers:
   - worker_id: A
     account_role: core-control-plane
     status: active
-    current_task: NEPTUNE-MERGE-CONFLICT-RESOLUTION-ADR-CANONICALIZATION
+    current_task: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
   - worker_id: B
     account_role: infrastructure-integration
     status: idle

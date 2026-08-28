@@ -215,3 +215,33 @@ dependencies:
       and DIRECTOR_DECISION_REGISTRY.md §4 item #4) has not been built.
       GatewayService still reads from the deprecated YAML ModelRegistry.
       This is the next logical step after director review of C-004.
+
+  - task_id: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+    depends_on:
+      - NEPTUNE-C-001-REGISTRY-CONSOLIDATION-ANALYSIS
+      - C-002-C-003-repository-correction-sprint
+      - NEPTUNE-C-004-CANONICAL-REGISTRY-MIGRATION
+      - C-005-legacy-registry-consumer-audit
+    note: >
+      capability_bridge.py implements the translation shape ADR-042
+      already decided (which legacy capability values map 1:1, which
+      are rejected and why) -- no new reconciliation logic, mechanical
+      only. Depends on C-004 for KNOWN_CAPABILITIES already containing
+      summarization/classification/embedding, and on C-005 for the
+      confirmed inventory of what actually consumes the legacy
+      Capability enum (used to verify no consumer needed direct
+      modification this task).
+
+  - task_id: NEPTUNE-GATEWAYSERVICE-CUTOVER-CAN-NOW-USE-BRIDGE
+    depends_on:
+      - NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+      - NEPTUNE-MODELGATEWAY-ADAPTER-STILL-PENDING
+    note: >
+      When the ModelGatewayPort adapter (still pending) or a direct
+      GatewayService cutover is eventually built, it should call
+      core.registry.capability_bridge.translate_capability(s)() when
+      converting a legacy Capability enum value (via .value) into a
+      canonical capability_id for CapabilityResolver/ProviderResolver,
+      rather than assuming the two vocabularies stay string-identical
+      forever. This entry documents the integration point; no cutover
+      task is active yet.

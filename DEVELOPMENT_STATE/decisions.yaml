@@ -721,3 +721,30 @@ decisions:
       changed -- confirmed by re-running the full test suite
       post-resolution with zero regressions.
     reversible: true
+
+  - id: C-DEC-008
+    task_id: NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+    decision: >
+      No new ADR created for this task -- confirmed by inspection that
+      the translation this task builds (which legacy capability values
+      map 1:1 to canonical ids, which are rejected and why) was already
+      decided by ADR-042 during C-004's capability reconciliation; this
+      task mechanically implements that decision as a small, tested
+      str->str function pair (core.registry.capability_bridge), not a
+      new architectural choice. Verified the actual current vocabularies
+      directly rather than trusting earlier reports: read
+      src/neptune/core/domain/capability.py's Capability enum (10
+      values) and core/registry/capability_registry.py's
+      KNOWN_CAPABILITIES (13 values) fresh, confirmed 8 values overlap
+      by exact string identity and the 2 non-overlapping legacy values
+      are exactly ADR-042's fast_general/frontier_escalation rejections
+      -- no new capability, no new rejection, no surprise found.
+      Confirmed no current consumer of the legacy Capability enum
+      (GatewayService, CapabilityRouter, ModelRegistry, RoutingCandidate
+      -- all traced directly in src/neptune) needed any modification,
+      since none of them are being cut over to the canonical vocabulary
+      this task -- the bridge is built and tested standalone, ready for
+      a future cutover task to call, per the explicit stop condition
+      (no GatewayService redesign, no cutover, no legacy registry
+      removal this task).
+    reversible: true

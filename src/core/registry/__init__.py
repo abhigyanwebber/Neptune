@@ -1,4 +1,12 @@
 from .audit import SYSTEM_REGISTRY_TASK_ID, emit_registry_event
+from .capability_bridge import (
+    EXTERNAL_TO_CANONICAL,
+    REJECTED_EXTERNAL_CAPABILITIES,
+    RejectedExternalCapabilityError,
+    UnknownExternalCapabilityError,
+    translate_capabilities,
+    translate_capability,
+)
 from .capability_registry import Capability, CapabilityRegistry
 from .dependency_resolution import (
     DependencyCycleError,
@@ -33,4 +41,10 @@ __all__ = [
     "load_registry_directory",
     "export_registry_snapshot",
     "export_registry_snapshot_to_file",
+    "translate_capability",
+    "translate_capabilities",
+    "EXTERNAL_TO_CANONICAL",
+    "REJECTED_EXTERNAL_CAPABILITIES",
+    "UnknownExternalCapabilityError",
+    "RejectedExternalCapabilityError",
 ]
