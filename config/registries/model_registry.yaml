@@ -1,16 +1,22 @@
 # Model registry data.
 #
 # Per 06_REGISTRIES/MODEL_REGISTRY.md: entries here are snapshots and
-# must be revalidated before production use. This entry was verified
-# 2026-08-13 against Groq's published docs for this task's provider
-# candidate selection (ADR-033). It is data, not an architectural
-# dependency -- the model_id below is the only place this name
-# appears outside this file and provider_registry.yaml.
+# must be revalidated before production use. The `model:` field
+# (provider-facing name) was corrected during B-008's live validation:
+# Groq confirmed via a live 404 that "llama-3.3-70b-versatile" no
+# longer exists ("does not exist or you do not have access to it"),
+# and a live GET /v1/models call confirmed "openai/gpt-oss-120b" as a
+# current, tool-calling-capable replacement. The `id:` key is left
+# unchanged (existing tests reference it by name); only the
+# provider-facing `model:` value and verification metadata changed.
+# This is a data-staleness fix, not an architectural change -- this
+# is exactly the kind of drift the "entries here are snapshots"
+# discipline above exists to catch.
 
 models:
   - id: groq-llama-3.3-70b-versatile
     provider: groq
-    model: llama-3.3-70b-versatile
+    model: openai/gpt-oss-120b
     capabilities:
       - fast_general
       - tool_use
@@ -24,7 +30,7 @@ models:
     quota: "~30 requests/min, ~6000 tokens/min, ~1000 requests/day (free tier, subject to change)"
     health: unknown
     availability: available
-    verified_at: "2026-08-13"
+    verified_at: "2026-08-31"
     fallbacks: []
     preferred_roles:
       - coder

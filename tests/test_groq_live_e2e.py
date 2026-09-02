@@ -46,7 +46,13 @@ def test_live_inference_round_trip(model_registry: ModelRegistry) -> None:
         turn_id="live-e2e-turn-1",
         capabilities=[Capability.FAST_GENERAL],
         context=[ContextMessage(role="user", content="Reply with exactly one word: hello")],
-        budget={"max_output_tokens": 20},
+        # openai/gpt-oss-120b (swapped in during B-008 after Groq
+        # retired llama-3.3-70b-versatile) is a reasoning model and
+        # spends some of max_output_tokens on internal reasoning
+        # before visible output -- 20 was tuned for the old model and
+        # produced finish_reason="length" with empty output_text on
+        # this one. 200 gives enough headroom for both.
+        budget={"max_output_tokens": 200},
     )
 
     result = gateway.infer(request)

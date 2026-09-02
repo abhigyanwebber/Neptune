@@ -748,3 +748,94 @@ decisions:
       (no GatewayService redesign, no cutover, no legacy registry
       removal this task).
     reversible: true
+
+  - id: B-DEC-019
+    task_id: B-008-modelgateway-adapter-first-real-agent-turn
+    decision: >
+      ModelGatewayAdapter.send() never raises, returning a normalized
+      error dict on any Gateway/Router/Provider failure instead --
+      the same convention ToolPortAdapter already established
+      (B-006/ADR-044), applied here because core/runtime/engine.py's
+      run_turn() has no try/except around self._gateway.send(context),
+      so a raised exception would leave a Turn stuck in AWAITING_MODEL
+      permanently. Documented as ADR-045 per B-008's own instruction
+      to stop and document genuine architectural decisions rather than
+      treat them as implementation details.
+    reversible: true
+
+  - id: B-DEC-020
+    task_id: B-008-modelgateway-adapter-first-real-agent-turn
+    decision: >
+      CanonicalRegistryCandidateSource resolves eligible PROVIDERS via
+      ProviderResolver against the first requested capability, then
+      collects models from EVERY eligible provider
+      (resolution.metadata["eligible_provider_ids"]), not just the
+      single top-ranked one. Found necessary during development:
+      ProviderResolver's own ranking picked Gemini above Groq for
+      "coding" (no capability-vs-adapter-availability awareness in its
+      ranking, which is correct -- that's not its job), and Gemini has
+      no models registered or adapter wired in, so querying only the
+      top pick returned zero candidates. Gathering from all eligible
+      providers lets the existing, unmodified fallback mechanisms
+      already built in ModelGatewayService.infer() (B-001: skip
+      candidates with no adapter) and CapabilityRouter (B-001:
+      fallback_chain) naturally land on Groq. No new routing algorithm
+      was added -- this reuses two already-tested fallback mechanisms;
+      it only changes what candidate list they see.
+    reversible: true
+
+  - id: B-DEC-021
+    task_id: B-008-modelgateway-adapter-first-real-agent-turn
+    decision: >
+      During live validation, Groq returned a real 404 for
+      llama-3.3-70b-versatile (the model verified live back in B-003,
+      2026-08-13): "The model `llama-3.3-70b-versatile` does not exist
+      or you do not have access to it." Live-probed GET /v1/models
+      with the operator-supplied key and confirmed openai/gpt-oss-120b
+      as a current, tool-calling-capable replacement. Updated the
+      provider-facing model name in both the canonical registry
+      (06_REGISTRIES/data/models.yaml -- new model_id
+      groq-openai-gpt-oss-120b, old entry deleted from Postgres) and
+      the legacy YAML (config/registries/model_registry.yaml -- model:
+      field updated in place, id: key left unchanged so existing tests
+      referencing it by name still resolve). Fixed every downstream
+      test that hardcoded the old name: tests/unit/gateway/
+      test_canonical_registry_candidate_source.py,
+      tests/integration/gateway/{test_canonical_gateway_integration,
+      test_live_first_agent_turn}.py, tests/test_registry.py,
+      tests/test_groq_live_e2e.py (also needed a token-budget increase
+      -- gpt-oss-120b is a reasoning model and spends some of
+      max_output_tokens on internal reasoning before visible output;
+      20 was tuned for the old model), and Claude A's own
+      tests/unit/registry/test_registry_loader.py (their test asserts
+      literal content of the shared seed file I corrected). Full suite
+      confirmed green after: 227 passed with a live key, 222 passed /
+      5 skipped without one.
+    reversible: true
+    note: >
+      This is exactly the kind of drift 06_REGISTRIES/MODEL_REGISTRY.md's
+      "entries here are snapshots and must be revalidated" discipline
+      exists to catch, and the second live-validation-uncovered model
+      retirement this project has hit (first was implicit in earlier
+      research; this is the first one caught by an actual live call).
+      Worth the director's awareness that a periodic (not just
+      per-task) live-registry-revalidation habit would catch this class
+      of issue before it blocks a milestone task's live gate.
+
+  - id: B-DEC-022
+    task_id: B-008-modelgateway-adapter-first-real-agent-turn
+    decision: >
+      CanonicalRegistryCandidateSource-related unit tests were made
+      resilient to shared-Postgres cross-test-suite state: Claude A's
+      own tests/integration/registry/_model_recovery_script.py
+      deliberately re-registers a model with the old (now-stale)
+      model_id as its own fixture data when the full suite runs, since
+      it uses the same non-isolated Postgres instance. Rather than
+      treating this as pollution to eliminate, B-008's own tests were
+      written to assert "at least the expected candidate is present"
+      instead of "exactly N candidates," and to select the specific
+      candidate they need by model_id rather than by next() on
+      provider_id alone. This is a pre-existing shared-test-database
+      characteristic, not something introduced by or in scope to fix
+      in B-008.
+    reversible: true

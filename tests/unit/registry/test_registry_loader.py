@@ -212,16 +212,20 @@ def test_load_real_seed_providers_yaml(registries):
 
 def test_load_real_seed_models_yaml(registries):
     """The actual migrated model seed data at 06_REGISTRIES/data/models.yaml
-    loads cleanly and matches the values migrated from the deprecated
-    config/registries/model_registry.yaml (C-004)."""
+    loads cleanly. model_id/provider_model_name updated during B-008's
+    live validation: Groq's real API confirmed (live 404)
+    "llama-3.3-70b-versatile" no longer exists; "openai/gpt-oss-120b"
+    is the current, live-confirmed, tool-calling-capable replacement
+    (see 06_REGISTRIES/data/models.yaml's own header comment and
+    DEVELOPMENT_STATE/decisions.yaml for the B-008 entry)."""
     _, _, _, _, model_registry = registries
     result = load_models(REPO_ROOT_DATA_DIR / "models.yaml", model_registry)
     assert result.errors == []
-    assert result.registered == ["groq-llama-3.3-70b-versatile"]
+    assert result.registered == ["groq-openai-gpt-oss-120b"]
 
-    model = model_registry.get("groq-llama-3.3-70b-versatile")
+    model = model_registry.get("groq-openai-gpt-oss-120b")
     assert model.provider_id == "groq"
-    assert model.provider_model_name == "llama-3.3-70b-versatile"
+    assert model.provider_model_name == "openai/gpt-oss-120b"
     assert model.status == "available"
     assert model.verification_status == "verified"
     # fast_general deliberately dropped per ADR-042 -- must not appear.

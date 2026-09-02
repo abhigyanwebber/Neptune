@@ -512,3 +512,55 @@ assignments:
     legacy_registry_removed: false
     new_adr: false # mechanically implements ADR-042's already-decided reconciliation; not a new architectural decision
     tests: "197 passed, 4 skipped (pre-existing live-credential tests, unrelated) with live Postgres available. 32 new tests (27 unit + 5 integration-level) for the bridge itself, zero regressions. Full collection: 201 tests, zero collection errors."
+
+
+  - task_id: B-008-modelgateway-adapter-first-real-agent-turn
+    worker_id: B
+    title: "ModelGateway Adapter & First Real Agent Turn"
+    status: complete
+    authorized_by: director
+    scope: >
+      Built ModelGatewayAdapter (src/neptune/infrastructure/gateway/
+      model_gateway_adapter.py) satisfying core.contracts.gateway.
+      ModelGatewayPort by wrapping the real ModelGatewayService
+      (B-001..B-003), now backed by CanonicalRegistryCandidateSource
+      (src/neptune/infrastructure/models/canonical_registry_adapter.py)
+      instead of the deprecated YAML ModelRegistry -- replacing the
+      single live-path dependency point C-005's audit identified.
+      Proved a full real turn: AgentRuntime -> RuntimeDriver ->
+      ModelGatewayPort -> ModelGatewayAdapter -> canonical registry
+      resolution (ProviderResolver + canonical ModelRegistry) ->
+      GroqAdapter -> REAL Groq API -> normalized response, deterministic
+      prompt "Respond with exactly: NEPTUNE_GATEWAY_OK" returned exactly
+      that content. Found and fixed a real-world data problem during
+      live validation: llama-3.3-70b-versatile (B-003) is now retired
+      on Groq's side (confirmed via live 404); replaced with
+      openai/gpt-oss-120b (confirmed via live GET /v1/models) in both
+      the canonical and legacy registries, and fixed every downstream
+      test that hardcoded the old name (including one in Claude A's
+      own tests/unit/registry/test_registry_loader.py). No frozen
+      contract modified. No AgentRuntime/RuntimeDriver/planning/
+      ToolExecutor/ObservationLoop redesign. No MCP, browser
+      automation, sandboxing, new persistence layer, multi-agent
+      orchestration, speculative routing, or unrelated providers added.
+      Legacy YAML ModelRegistry NOT deleted (still present, no longer
+      required for the live path -- see LEGACY REGISTRY DEPENDENCIES
+      REMAINING in the final report).
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - core.contracts.registry.*
+    runtime_modified: false
+    registry_modified: "data only (model name correction), not architecture"
+    adr:
+      - "ADR-045-model-gateway-port-never-raises.md"
+    tests: "227 passed, 0 skipped with GROQ_API_KEY present; 222 passed, 5 skipped without (all 5 correctly attributed to missing credential)"
+    acceptance_gates: "all 7 satisfied -- see final report for detail per gate"

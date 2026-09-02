@@ -14,22 +14,25 @@
 # describes a cost/latency tier, not a task-type capability).
 
 models:
-  - model_id: groq-llama-3.3-70b-versatile
+  - model_id: groq-openai-gpt-oss-120b
     provider_id: groq
-    provider_model_name: llama-3.3-70b-versatile
+    provider_model_name: openai/gpt-oss-120b
     capabilities: [tool_use, coding, summarization, classification]
     status: available
     depends_on: [groq]
-    verification_date: "2026-08-13"
-    verification_source: "B-003 live validation against the real Groq API (see DEVELOPMENT_STATE/decisions.yaml, B-DEC-010)"
+    verification_date: "2026-08-31"
+    verification_source: "B-008 live validation against the real Groq API, GET /v1/models (see DEVELOPMENT_STATE/decisions.yaml, B-DEC entry for B-008)"
     verification_status: verified
     notes: >
-      Reference candidate for the first single-provider vertical slice
-      (ADR-033). context_limit: 131072 tokens. tool_calling: true.
-      structured_output: true. cost_class: free. quota (as of
-      verification_date, provider-published, not load-tested): ~30
-      requests/min, ~6000 tokens/min, ~1000 requests/day on the free
-      tier, subject to change. preferred_roles (B-side routing hint,
-      not yet consumed by anything canonical): coder, extraction_worker.
-      No card required for the free tier. Not an architectural
-      dependency -- fully replaceable behind ProviderAdapter.
+      Replaces groq-llama-3.3-70b-versatile (B-001/B-003), which was
+      confirmed retired via a live 404 from Groq's API during B-008's
+      live gate: "The model `llama-3.3-70b-versatile` does not exist
+      or you do not have access to it." openai/gpt-oss-120b confirmed
+      live via GET /v1/models and supports tool calling. context_limit:
+      see live model listing (not re-verified field-by-field in this
+      update; only provider_model_name and status were corrected).
+      cost_class: free. No card required for the free tier. Not an
+      architectural dependency -- fully replaceable behind
+      ProviderAdapter. This is exactly the kind of drift
+      06_REGISTRIES/MODEL_REGISTRY.md's "verified_at requires
+      revalidation" discipline exists to catch.

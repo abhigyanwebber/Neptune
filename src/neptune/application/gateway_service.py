@@ -11,6 +11,7 @@ about the other.
 from __future__ import annotations
 
 import time
+from typing import Protocol, runtime_checkable
 
 from neptune.core.contracts.model_gateway import (
     ModelError,
@@ -24,9 +25,26 @@ from neptune.core.contracts.provider_adapter import (
     ProviderInvocationError,
     ProviderRequest,
 )
-from neptune.core.contracts.router import NoViableCandidateError, Router
-from neptune.core.domain import ErrorType
-from neptune.infrastructure.models.registry import ModelRegistry
+from neptune.core.contracts.router import NoViableCandidateError, Router, RoutingCandidate
+from neptune.core.domain import Capability, ErrorType
+
+
+@runtime_checkable
+class CandidateSource(Protocol):
+    """Structural type for anything ModelGatewayService can read
+    RoutingCandidates from. Widened in B-008 from a concrete
+    dependency on the legacy neptune.infrastructure.models.registry.
+    ModelRegistry so CanonicalRegistryCandidateSource (reading from
+    Claude A's canonical registry, per C-005's cutover plan) can be
+    used interchangeably -- both classes already had this exact method
+    shape; this only makes the type hint honest, no runtime behavior
+    change. Not a new architectural contract: this Protocol is a
+    Python-level implementation convenience internal to this
+    application module, not something exposed via core.contracts.
+    """
+
+    def candidates_for(self, capabilities: list[Capability]) -> list[RoutingCandidate]:
+        ...
 
 
 class ModelGatewayService:
@@ -34,7 +52,7 @@ class ModelGatewayService:
 
     def __init__(
         self,
-        registry: ModelRegistry,
+        registry: CandidateSource,
         router: Router,
         adapters: dict[str, ProviderAdapter],
     ) -> None:

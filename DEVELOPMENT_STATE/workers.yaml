@@ -16,10 +16,12 @@ workers:
       - B-006-tool-execution-recovery-validation
       - C-002-C-003-repository-correction-sprint
       - C-005-legacy-registry-consumer-audit
+      - B-008-modelgateway-adapter-first-real-agent-turn
     notes: >
-      worker/claude-a was merged locally into worker/claude-b three
+      worker/claude-a was merged locally into worker/claude-b four
       times: fast-forward to b4fb5a1 for B-006, fast-forward to
-      42b3cd1 during C-002/C-003, and a real three-way merge to
-      1184e02 during C-005 (branches had diverged). worker/claude-a
-      itself is untouched by any of these; this note is informational
-      for whoever next reviews branch state.
+      42b3cd1 during C-002/C-003, a real three-way merge to 1184e02
+      during C-005, and a real three-way merge to origin/main (C-004,
+      C-005, C-006, B-007) during B-008. worker/claude-a itself is
+      untouched by any of these; this note is informational for
+      whoever next reviews branch state.
