@@ -564,3 +564,16 @@ assignments:
       - "ADR-045-model-gateway-port-never-raises.md"
     tests: "227 passed, 0 skipped with GROQ_API_KEY present; 222 passed, 5 skipped without (all 5 correctly attributed to missing credential)"
     acceptance_gates: "all 7 satisfied -- see final report for detail per gate"
+
+  - task_id: NEPTUNE-DIRECTOR-REVIEW-002
+    worker_id: A
+    title: "Integrated Neptune System Audit"
+    status: complete
+    authorized_by: director
+    mode: read-only-audit
+    deliverable: "DIRECTOR_REVIEW_002.md"
+    verdict: "PROCEED WITH CORRECTIONS"
+    code_modified: false
+    contracts_modified: false
+    architecture_modified: false
+    tests: "227 collected, 0 errors. 222 passed / 5 skipped this session (no GROQ_API_KEY available to the auditor; live-credentialed 227/0 claim not independently re-verified, see report §9)."
