@@ -52,6 +52,7 @@ These are intentionally reversible and do not override the implementation-choice
 - ADR-043 — Observation feedback format (renumbered from ADR-037, then ADR-039, then ADR-041 -- see B-DEC-017, C-DEC-001, C-DEC-004)
 - ADR-044 — ToolPort attribution seam, B-006 finding (renumbered from ADR-040, then ADR-042 -- see C-DEC-001 and this merge's resolution note)
 - ADR-045 — ModelGatewayPort never raises, B-008 finding
+- ADR-046 — ModelGatewayAdapter tool definitions injected at construction, B-009 finding
 
 **Numbering history note:** ADR-039 through ADR-044 went through several
 rounds of collisions from parallel branch development (`worker/claude-a`

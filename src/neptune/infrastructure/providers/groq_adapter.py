@@ -132,6 +132,15 @@ class GroqAdapter:
                 }
                 for t in request.tools
             ]
+            # Groq's default tool_choice when omitted behaves as "none"
+            # (confirmed via a live 400: "Tool choice is none, but
+            # model called a tool" -- B-009 live validation), unlike
+            # some OpenAI-compatible surfaces that default to "auto"
+            # when tools are present. Must be explicit whenever tools
+            # are offered, or the model choosing to call a tool is
+            # itself a request-level error rather than a normal
+            # tool_calls response.
+            payload["tool_choice"] = "auto"
 
         start = time.perf_counter()
         try:

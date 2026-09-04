@@ -39,6 +39,7 @@ from neptune.core.contracts.model_gateway import (
     ModelGatewayError,
     ModelRequest,
     ModelResult,
+    ToolDefinition,
 )
 from neptune.core.domain import Capability
 
@@ -61,18 +62,35 @@ _MAX_RECENT_EVENTS_IN_PROMPT = 5
 class ModelGatewayAdapter:
     """One instance is bound to one (task_id, session_id) -- construct a
     fresh instance per Runtime/process, same lifecycle discipline as
-    ToolPortAdapter and every Neptune ProviderAdapter."""
+    ToolPortAdapter and every Neptune ProviderAdapter. See ADR-046 for
+    why tool_definitions is a constructor parameter rather than being
+    derived from Core's context dict."""
 
     def __init__(
         self,
         gateway: ModelGatewayService,
         task_id: str,
         session_id: str,
+        tool_definitions: list[ToolDefinition] | None = None,
     ) -> None:
         self._gateway = gateway
         self._task_id = task_id
         self._session_id = session_id
         self._call_counter = itertools.count(1)
+        # B-009 finding: Core's context dict (core/runtime/context.py::
+        # assemble_context) has no "tools" concept at all -- the same
+        # gap already documented for "capability" above. Without this,
+        # ModelRequest.tools was always [], so GroqAdapter never sent
+        # a tools/tool_choice payload, yet a reasoning model
+        # (openai/gpt-oss-120b) still attempted a tool call on its own,
+        # which Groq correctly rejected: "Tool choice is none, but
+        # model called a tool" (live 400, B-009 validation). The
+        # adapter is told what tools are available at construction
+        # time, the same way it's told task_id/session_id -- not a
+        # Core change, not a new contract, and consistent with every
+        # other Neptune adapter's "configured once per Runtime"
+        # lifecycle.
+        self._tool_definitions = tool_definitions or []
 
     def send(self, request: dict) -> dict:
         turn_id = f"{self._session_id}-pending-turn"
@@ -114,6 +132,7 @@ class ModelGatewayAdapter:
             turn_id=turn_id,
             capabilities=capabilities,
             context=[ContextMessage(role="user", content=prompt)],
+            tools=self._tool_definitions,
         )
 
     def _translate_response(self, result: ModelResult) -> dict:

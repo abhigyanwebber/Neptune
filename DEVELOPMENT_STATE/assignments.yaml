@@ -577,3 +577,60 @@ assignments:
     contracts_modified: false
     architecture_modified: false
     tests: "227 collected, 0 errors. 222 passed / 5 skipped this session (no GROQ_API_KEY available to the auditor; live-credentialed 227/0 claim not independently re-verified, see report §9)."
+
+
+  - task_id: B-009-full-live-agent-loop-integration-validation
+    worker_id: B
+    title: "Full Live Agent Loop Integration Validation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Validation/composition task. Proved the complete Neptune agent
+      loop as one genuine end-to-end execution: real Neptune request
+      -> real AgentRuntime/RuntimeDriver -> real ModelGateway -> real
+      canonical provider/model resolution -> real Groq model -> real
+      model chooses the echo tool -> real ToolExecutor -> real tool
+      result -> real observation fed back into AgentRuntime -> real
+      second model turn -> real final answer -> completion, with
+      persisted checkpoint state. All 8 required acceptance-evidence
+      items proven with explicit assertions, not inferred.
+      tests/integration/runtime/test_full_live_agent_loop.py (live,
+      gated on GROQ_API_KEY), test_full_agent_loop_mock.py
+      (deterministic composition using real AgentRuntime/ToolExecutor/
+      EchoTool with only the model faked via Claude A's own
+      FakeModelGateway test double), and test_full_agent_loop_recovery.py
+      (Phase 4: the full loop composed with a genuine two-process
+      restart, extending B-006's tool-execution recovery proof).
+      Found and fixed two minimal, blocking defects during live
+      validation (neither was one of the two Director Review 002
+      findings, which did not block the loop and were left untouched
+      per instructions): (1) GroqAdapter never set tool_choice, and
+      Groq's default behaves as "none" -- added tool_choice: "auto"
+      whenever tools are offered; (2) ModelGatewayAdapter never
+      populated ModelRequest.tools at all (Core's context dict has no
+      tool-availability concept) -- added an optional
+      tool_definitions constructor parameter. Both documented as
+      ADRs (045 already existed for a different B-008 finding; 046 is
+      new for the tool-definitions gap). No AgentRuntime/RuntimeDriver/
+      ModelGateway/ToolExecutor/ObservationLoop redesign. No new
+      providers, MCP, browser automation, sandboxing, permissions
+      architecture, planning redesign, registry/resolution redesign,
+      second gateway contract, second runtime, speculative retry, or
+      multi-agent orchestration.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - core.contracts.registry.*
+    runtime_modified: false
+    adr:
+      - "ADR-046-model-gateway-tool-definitions-injection.md"
+    tests: "230 passed with GROQ_API_KEY present; 224 passed, 6 skipped without one (all correctly attributed)"
+    acceptance_gates: "all 7 satisfied -- see final report for detail per gate"

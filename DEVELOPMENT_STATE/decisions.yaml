@@ -839,3 +839,55 @@ decisions:
       characteristic, not something introduced by or in scope to fix
       in B-008.
     reversible: true
+
+  - id: B-DEC-023
+    task_id: B-009-full-live-agent-loop-integration-validation
+    decision: >
+      GroqAdapter never set tool_choice in its payload. Live validation
+      surfaced this as a real 400: "Tool choice is none, but model
+      called a tool" -- Groq's default tool_choice behavior when
+      omitted is apparently "none" rather than "auto", unlike some
+      other OpenAI-compatible surfaces. Fixed by adding
+      tool_choice: "auto" to the payload whenever request.tools is
+      non-empty, in src/neptune/infrastructure/providers/groq_adapter.py.
+      Minimal, adapter-internal fix; no contract touched. Confirmed no
+      regression: existing mocked GroqAdapter/gateway tests (33 tests)
+      still pass unchanged.
+    reversible: true
+
+  - id: B-DEC-024
+    task_id: B-009-full-live-agent-loop-integration-validation
+    decision: >
+      ModelGatewayAdapter._translate_request() (B-008) never populated
+      ModelRequest.tools, because Core's context dict
+      (core/runtime/context.py::assemble_context()) has no
+      tool-availability concept at all. This meant real tool-calling
+      through the real AgentRuntime path was structurally impossible,
+      not merely buggy -- discovered only once B-009 actually required
+      a live model to call a live tool through that exact path (B-008's
+      own tests never exercised offering tools through this adapter).
+      Fixed by adding an optional tool_definitions constructor
+      parameter to ModelGatewayAdapter, included in every ModelRequest
+      it builds for that instance's lifetime. Documented as ADR-046 --
+      genuinely architectural (it determines whether real tool-calling
+      through the Runtime path is possible at all), not an
+      implementation detail, per this task's own "stop and document"
+      instruction. No core/* file touched; the fix lives entirely in
+      the adapter's own construction, the same "configure once at
+      construction" pattern already used for task_id/session_id.
+    reversible: true
+
+  - id: B-DEC-025
+    task_id: B-009-full-live-agent-loop-integration-validation
+    decision: >
+      Confirmed via direct reading of DIRECTOR_REVIEW_002's two flagged
+      findings (ModelGatewayAdapter._translate_request()'s uncaught
+      ValueError for unsupported capability overrides; no retry/backoff
+      policy) that neither blocks this task's loop: the test uses
+      "tool_use"/"coding" as the capability, both valid on both the
+      external and canonical sides, so the ValueError path is never
+      exercised, and no retry logic is required for a single successful
+      round trip. Left both untouched, per this task's explicit
+      instruction not to automatically expand into fixing them; both
+      reported as hardening follow-ups in the final report instead.
+    reversible: true
