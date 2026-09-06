@@ -648,3 +648,63 @@ assignments:
       - "ADR-046-model-gateway-tool-definitions-injection.md"
     tests: "230 passed with GROQ_API_KEY present; 224 passed, 6 skipped without one (all correctly attributed)"
     acceptance_gates: "all 7 satisfied -- see final report for detail per gate"
+
+
+  - task_id: B-010-minimum-real-tool-surface-filesystem-shell
+    worker_id: B
+    title: "Minimum Real Tool Surface: Filesystem & Shell Integration"
+    status: complete
+    authorized_by: director
+    scope: >
+      Real filesystem tool (read_file, write_file, list_directory) and
+      real shell tool (run_command), through the existing ToolDefinition
+      -> ToolPort -> ToolExecutor boundary, unmodified. Phase 1 research
+      review concluded no external component fits this minimal scope
+      for direct/adapter reuse (stdlib pathlib/subprocess is correct,
+      zero new dependencies, matches ADR-034); only pattern-level reuse
+      applies (OpenHands workspace-scoped runtime, Codex CLI
+      sandbox_mode/cwd separation, already documented in
+      04_RESEARCH/tool_candidates.md from B-002). Explicit
+      WorkspaceBoundary rejects absolute paths and .. traversal for
+      filesystem tools; shell tool's cwd is fixed to the workspace
+      root with no override argument. No sandbox/container isolation
+      built (SANDBOX_CONTRACT.md remains frozen/unimplemented,
+      correctly so per this task's scope). Registered both tools in
+      the canonical tool catalog (06_REGISTRIES/data/tools.yaml:
+      filesystem and terminal entries updated from
+      verification_status: candidate to verified, with
+      verification_source/date/notes) -- a data update, not a
+      core/registry implementation change, matching the established
+      precedent from B-008/B-009's model_registry.yaml corrections.
+      Composition with Claude A's dynamic tool-offering layer (the
+      ADR-046-adjacent gap Director Review 002/003 already flagged)
+      could not be validated jointly: worker/claude-a has not pushed
+      that work as of this task's sync point (confirmed via re-fetch
+      at task completion, still at DIRECTOR-REVIEW-003). Validated
+      independently instead: canonical registration proven via
+      core.registry.tool_registry, and real execution proven via the
+      existing ToolPortAdapter/ToolExecutorService boundary -- the
+      same seam A's dynamic-offering layer is expected to sit in front
+      of, unmodified. No AgentRuntime/RuntimeDriver/ModelGateway/
+      ToolExecutor/ObservationLoop redesign, no permissions, no
+      sandbox, no browser automation, no MCP, no network tools, no
+      package managers, no process supervisors, no second registry/
+      contract. No ADR created or proposed -- every decision made was
+      an implementation detail within existing contracts, per this
+      task's explicit ADR Rule.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - core.contracts.registry.*
+    runtime_modified: false
+    registry_modified: "data only (tools.yaml verification metadata), not architecture"
+    adr: []
+    tests: "265 passed, 6 skipped (unrelated live-credential skips, unchanged from B-009). 41 new tests: 24 filesystem unit, 11 shell unit, 6 integration."

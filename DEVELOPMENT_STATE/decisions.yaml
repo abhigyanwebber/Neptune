@@ -891,3 +891,82 @@ decisions:
       instruction not to automatically expand into fixing them; both
       reported as hardening follow-ups in the final report instead.
     reversible: true
+
+  - id: B-DEC-026
+    task_id: B-010-minimum-real-tool-surface-filesystem-shell
+    decision: >
+      Phase 1 research review concluded: no external component
+      (library or OSS agent-framework code) genuinely fits direct or
+      thin-adapter reuse for a minimal, scoped filesystem/shell tool.
+      Native implementation via Python stdlib (pathlib, subprocess) is
+      correct: zero new dependencies, fully auditable, and no mature
+      standalone "workspace-scoped tool" library exists as distinct
+      from a full sandboxing service (which is explicitly out of
+      scope for this task). Classification: DIRECTLY REUSABLE: none.
+      REUSABLE VIA THIN ADAPTER: none. PATTERN ONLY: OpenHands'
+      workspace-scoped runtime split, Codex CLI's sandbox_mode/cwd
+      separation (both already documented in
+      04_RESEARCH/tool_candidates.md, B-002 -- not re-derived, just
+      re-confirmed still applicable). NOT SUITABLE: full sandboxing
+      components (E2B/Docker) for this task's explicit no-sandbox
+      scope; wholesale code copying from any OSS agent framework
+      (licensing/maintenance burden disproportionate to a <100-line
+      native implementation).
+    reversible: true
+
+  - id: B-DEC-027
+    task_id: B-010-minimum-real-tool-surface-filesystem-shell
+    decision: >
+      Implemented filesystem operations as three separate Tool classes
+      (ReadFileTool, WriteFileTool, ListDirectoryTool) rather than one
+      tool with an operation-switch argument -- matches the one-tool-
+      one-bounded-capability shape EchoTool (B-004) already
+      established, keeps each tool's model-facing JSON schema minimal,
+      and matches how the research corpus describes mature coding-
+      agent harnesses exposing file operations as separate functions.
+      A shared WorkspaceBoundary instance enforces the same root-escape
+      guard across all three (and is reused by no other tool type).
+      No separate "edit" tool: write_file overwrites full content,
+      sufficient for read-modify-write via read_file + write_file and
+      matching this task's stated minimum-operations scope ("add other
+      operations only when clearly necessary").
+    reversible: true
+
+  - id: B-DEC-028
+    task_id: B-010-minimum-real-tool-surface-filesystem-shell
+    decision: >
+      RunCommandTool treats a command timeout as a normal, informative
+      SUCCESS result (timed_out: true, partial stdout/stderr captured)
+      rather than a tool-execution failure -- the tool succeeded at
+      running and timing the command; that is a different concern from
+      the tool itself failing. subprocess.run() is given its own
+      timeout (8s default), shorter than ToolExecutorService's own
+      thread-level timeout (B-004, default 10s), so the OS process is
+      actually killed via subprocess's own mechanism rather than
+      relying solely on ThreadPoolExecutor cancellation (which does
+      not kill an already-running blocking call in that thread -- a
+      pre-existing characteristic of ToolExecutor's timeout mechanism,
+      not something this task modifies or is in scope to fix). cwd is
+      fixed to the workspace root with no argument that can override
+      it -- the only boundary this tool enforces, consistent with
+      "not the final permission/sandbox system" (07_SECURITY/
+      02_PERMISSION_MODEL.md remains an unimplemented design).
+    reversible: true
+
+  - id: B-DEC-029
+    task_id: B-010-minimum-real-tool-surface-filesystem-shell
+    decision: >
+      Composition validation with Claude A's dynamic tool-offering
+      layer (the gap ADR-046/Director Review 002-003 already
+      identified) could not be performed jointly -- re-fetched
+      origin/worker/claude-a at task completion and confirmed it is
+      still at DIRECTOR-REVIEW-003 (e060bfd), with no new tool-
+      discovery work pushed. Per this task's own instruction ("state
+      the exact dependency and validate each side independently"),
+      validated this side fully instead: canonical registration
+      proven via core.registry.tool_registry (Postgres-backed), and
+      real execution proven via the existing, unmodified
+      ToolPortAdapter/ToolExecutorService boundary -- the exact seam
+      A's dynamic-offering layer is expected to sit in front of.
+    reversible: true
+    note: "Process/dependency finding, not an architecture decision."
