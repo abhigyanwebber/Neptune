@@ -22,11 +22,16 @@ COMPLETED status with the failure preserved in `turn.model_response`
 (opaque to Core either way). See B-DEC entry for this task for the
 full reasoning -- this is a deliberate architectural choice, not an
 implementation detail, per B-008's own "stop and document" guidance.
-This module deliberately does NOT import core.contracts.gateway (or
-anything else from core.*) -- ModelGatewayAdapter satisfies
-ModelGatewayPort structurally (duck typing), the same boundary
-discipline ToolPortAdapter already established (B-006/ADR-044): this
-module stays entirely within neptune's own package.
+This module deliberately does NOT import core.contracts.gateway --
+ModelGatewayAdapter satisfies ModelGatewayPort structurally (duck
+typing), the same boundary discipline ToolPortAdapter already
+established (B-006/ADR-044). It does import core.registry.
+capability_bridge (A-008/C-006): that module is a pure str->str
+translation utility with zero infrastructure/provider dependencies of
+its own (core/contracts/test_core_provider_independence.py enforces
+this on the core/ side), so importing it here is importing a small,
+provider-neutral helper, not reaching into Core's runtime/contract
+machinery the way importing core.contracts.gateway would.
 """
 from __future__ import annotations
 
@@ -42,6 +47,12 @@ from neptune.core.contracts.model_gateway import (
     ToolDefinition,
 )
 from neptune.core.domain import Capability
+
+from core.registry.capability_bridge import (
+    RejectedExternalCapabilityError,
+    UnknownExternalCapabilityError,
+    translate_capability,
+)
 
 
 _DEFAULT_CAPABILITY = Capability.CODING
@@ -62,9 +73,23 @@ _MAX_RECENT_EVENTS_IN_PROMPT = 5
 class ModelGatewayAdapter:
     """One instance is bound to one (task_id, session_id) -- construct a
     fresh instance per Runtime/process, same lifecycle discipline as
-    ToolPortAdapter and every Neptune ProviderAdapter. See ADR-046 for
-    why tool_definitions is a constructor parameter rather than being
-    derived from Core's context dict."""
+    ToolPortAdapter and every Neptune ProviderAdapter.
+
+    Tool offering (A-008): the primary source of what tools a request
+    offers the model is now request['available_tools'] -- a list of
+    plain canonical dicts, produced by
+    core.resolution.tool_offering_resolver.ToolOfferingResolver querying
+    the canonical Tool Registry fresh on every call. A caller populates
+    this by passing extra_context={"available_tools": resolver.
+    available_tools()} into AgentRuntime.run_turn() (an existing,
+    unmodified parameter -- no Runtime change was needed). The
+    constructor's `tool_definitions` parameter is preserved as a
+    backward-compatible fallback, used only when request['available_tools']
+    is absent -- this keeps every existing caller (including
+    test_full_live_agent_loop.py, B-008/B-009) working unmodified while
+    making the registry-driven path the default for any new caller. See
+    ADR-046 for why a per-request mechanism was needed at all (Core's
+    context dict has no native tool-availability concept)."""
 
     def __init__(
         self,
@@ -115,7 +140,20 @@ class ModelGatewayAdapter:
 
         capability_override = constraints.get("capability")
         if capability_override:
-            capabilities = [Capability(capability_override)]
+            # A-008 fix: previously `Capability(capability_override)`
+            # directly, which raised an uncaught ValueError for any
+            # canonical-only capability (web_search/mcp/browser/
+            # terminal/memory -- see DIRECTOR_REVIEW_002.md/003.md).
+            # Routed through the C-006 bridge first, and any failure
+            # (unrecognized, rejected, or bridge-translated-but-still-
+            # not-a-legacy-enum-member) falls back to the documented
+            # default rather than propagating -- this send() call must
+            # never raise (see module docstring).
+            try:
+                canonical_capability_id = translate_capability(capability_override)
+                capabilities = [Capability(canonical_capability_id)]
+            except (UnknownExternalCapabilityError, RejectedExternalCapabilityError, ValueError):
+                capabilities = [_DEFAULT_CAPABILITY]
         else:
             capabilities = [_DEFAULT_CAPABILITY]
 
@@ -126,13 +164,21 @@ class ModelGatewayAdapter:
             prompt_lines.append(f"[{event.get('event_type')}] {event.get('payload')}")
         prompt = "\n".join(prompt_lines) or "Proceed."
 
+        # A-008: dynamic, registry-driven tool offering takes precedence
+        # over the static constructor list (see class docstring).
+        dynamic_offerings = request.get("available_tools")
+        if dynamic_offerings is not None:
+            tools = _offering_dicts_to_tool_definitions(dynamic_offerings)
+        else:
+            tools = self._tool_definitions
+
         return ModelRequest(
             task_id=request.get("task_id") or self._task_id,
             session_id=request.get("session_id") or self._session_id,
             turn_id=turn_id,
             capabilities=capabilities,
             context=[ContextMessage(role="user", content=prompt)],
-            tools=self._tool_definitions,
+            tools=tools,
         )
 
     def _translate_response(self, result: ModelResult) -> dict:
@@ -170,3 +216,23 @@ class ModelGatewayAdapter:
                 "provider_id": error.provider_id,
             },
         }
+
+
+def _offering_dicts_to_tool_definitions(offerings: list[dict]) -> list[ToolDefinition]:
+    """Translates core.resolution.tool_offering_resolver's plain
+    canonical dicts into Neptune's own ToolDefinition Pydantic model
+    (A-008). `name` is set to the offering's tool_id (the identifier
+    ToolExecutor actually routes on), not its human-readable `name`
+    field -- the model-facing "name" in a function-calling API is a
+    callable identifier, and tool_id is Neptune's canonical identifier
+    for that purpose (see core/registry/tool_registry.py). The
+    human-readable name is folded into the description instead, so
+    nothing is silently dropped."""
+    return [
+        ToolDefinition(
+            name=offering["tool_id"],
+            description=f"{offering.get('name', offering['tool_id'])}: {offering.get('description', '')}".strip(": "),
+            parameters_schema={},
+        )
+        for offering in offerings
+    ]

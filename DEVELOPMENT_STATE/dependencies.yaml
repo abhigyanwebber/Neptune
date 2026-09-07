@@ -245,3 +245,34 @@ dependencies:
       rather than assuming the two vocabularies stay string-identical
       forever. This entry documents the integration point; no cutover
       task is active yet.
+
+  - task_id: NEPTUNE-A-008-DYNAMIC-TOOL-OFFERING
+    depends_on:
+      - NEPTUNE-A-003-REGISTRY
+      - NEPTUNE-A-006-RESOLUTION-LAYER
+      - NEPTUNE-C-006-CAPABILITY-VOCABULARY-BRIDGE
+      - B-008-modelgateway-adapter-first-real-agent-turn
+      - B-009-full-live-agent-loop-integration-validation
+    note: >
+      ToolOfferingResolver is a pure consumer of the existing
+      ToolRegistry (A-003) and capability_bridge (C-006) -- no changes
+      to either were needed. The model_gateway_adapter.py change depends
+      on B-008's ModelGatewayAdapter/ModelRequest.tools shape already
+      existing.
+
+  - task_id: NEPTUNE-B-010-CAN-NOW-REGISTER-REAL-TOOLS-WITH-DYNAMIC-OFFERING
+    depends_on:
+      - NEPTUNE-A-008-DYNAMIC-TOOL-OFFERING
+    note: >
+      Once B-010 registers real filesystem/shell tools in the canonical
+      ToolRegistry (matching tool_ids already reserved in
+      06_REGISTRIES/data/tools.yaml: filesystem, terminal) AND binds a
+      real ToolPort-satisfying implementation for each, those tools
+      become automatically offered to the model on the very next
+      request -- no further ModelGatewayAdapter change is needed. Note:
+      ToolOfferingResolver only reflects what's registered in the
+      canonical *catalog*; it does not verify a matching ToolExecutor
+      binding exists. Whoever wires the live full-loop test for a real
+      new tool should register both together (as EchoTool already does
+      implicitly via the constructor-fallback path) so the model is
+      never offered a catalog-only tool with no execution backing.

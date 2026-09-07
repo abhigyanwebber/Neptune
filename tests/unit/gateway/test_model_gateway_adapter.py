@@ -82,13 +82,16 @@ def test_send_falls_back_to_proceed_with_no_requirements_or_events() -> None:
 
 
 def test_send_preserves_tool_calls_shape() -> None:
-    """Core's engine.py/ToolPort expect {"tool_name": ..., "args": ...}
-    -- MockProviderAdapter emits a tool_intent whenever tools are
-    offered, but ModelGatewayAdapter itself doesn't offer tools from
-    Core's request dict (no tool concept in Core's context dict yet) --
-    this test documents that tool_calls is always [] via this path
-    today, which is correct/expected, not a bug (see KNOWN LIMITATIONS
-    in the B-008 report)."""
+    """Core's engine.py/ToolPort expect {"tool_name": ..., "args": ...}.
+    This test only covers a request with no `available_tools` key --
+    tool_calls is [] here because no tools were offered, not because
+    tools can never be offered. As of A-008, supplying
+    request["available_tools"] (typically populated from
+    core.resolution.tool_offering_resolver.ToolOfferingResolver) makes
+    ModelGatewayAdapter offer real tools and MockProviderAdapter emits a
+    tool_intent whenever tools are present -- see
+    tests/unit/gateway/test_dynamic_tool_offering_integration.py for
+    that path."""
     adapter = _build_adapter()
     response = adapter.send({"requirements": ["test"]})
     assert response["tool_calls"] == []

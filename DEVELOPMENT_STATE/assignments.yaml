@@ -648,3 +648,65 @@ assignments:
       - "ADR-046-model-gateway-tool-definitions-injection.md"
     tests: "230 passed with GROQ_API_KEY present; 224 passed, 6 skipped without one (all correctly attributed)"
     acceptance_gates: "all 7 satisfied -- see final report for detail per gate"
+
+  - task_id: NEPTUNE-A-008-DYNAMIC-TOOL-OFFERING
+    worker_id: A
+    title: "Dynamic Tool Offering & Registry Integration"
+    status: complete
+    authorized_by: director
+    runs_in_parallel_with: B-010
+    depends_on: [C-004, C-006, B-008, B-009, NEPTUNE-DIRECTOR-REVIEW-003]
+    scope: >
+      Closed the gap DIRECTOR_REVIEW_002/003 and ADR-046 identified:
+      ModelGatewayAdapter.tool_definitions was a fixed list set once at
+      construction, with no path from the canonical registry to a
+      per-request tool offering. Added
+      src/core/resolution/tool_offering_resolver.py (ToolOfferingResolver)
+      -- queries the existing canonical ToolRegistry (A-003) fresh on
+      every call, filters by canonical capability via the existing C-006
+      bridge, deterministic tool_id ordering, defensive dedup, never
+      fabricates a placeholder tool. Zero new registry, zero new
+      contract -- reuses A-003/A-006/C-006 machinery entirely. Updated
+      model_gateway_adapter.py (Neptune side, not Core) to prefer
+      request['available_tools'] (populated via AgentRuntime.run_turn's
+      existing, unmodified extra_context parameter) over the static
+      constructor list, which is preserved unchanged as a backward-
+      compatible fallback -- test_full_live_agent_loop.py (B-008/B-009)
+      needed zero changes. Also fixed, in the same already-open function,
+      a real dormant defect DIRECTOR_REVIEW_002/003 flagged twice: the
+      capability-override path constructed the legacy Capability enum
+      directly and could raise an uncaught ValueError for a canonical-
+      only capability value; now routed through the C-006 bridge with a
+      safe fallback, consistent with this task's own "use the canonical
+      vocabulary and C-006 bridge" instruction for this exact code path.
+      core/runtime/engine.py and core/runtime/driver.py were NOT
+      modified -- the extra_context hook they already exposed was
+      sufficient.
+    existing_resource_review: >
+      04_RESEARCH/tool_candidates.md and sandbox_candidates.md reviewed
+      per instruction -- neither offers a directly-reusable, adapter-
+      wrappable, or even pattern-relevant component for THIS task's
+      specific job (request-time tool-list discovery from a registry).
+      Both documents are about concrete tool/sandbox *implementations*
+      (filesystem, shell, Docker/gVisor/Firecracker), which is B-010's
+      scope, not this task's. Classification: NOT SUITABLE for all
+      surveyed candidates, for this task specifically -- request-time
+      registry-driven tool offering is inherently Neptune-specific glue
+      connecting two already-Neptune-designed contracts (canonical
+      ToolRegistry, neptune ModelRequest.tools), not a problem an
+      external library solves. No candidate was forced in merely to
+      avoid writing the small adapter function this task needed.
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+    runtime_modified: false
+    planning_modified: false
+    registry_modified: false
+    tool_executor_modified: false
+    second_registry_created: false
+    new_adr: false # implementation detail closing an already-anticipated ADR-046 gap using existing mechanisms; no new architectural decision made -- see decisions.yaml
+    tests: "252 collected, 0 collection errors (up from 230). 246 passed, 6 skipped with live Postgres available and no GROQ_API_KEY (all 6 skips correctly attributed to the missing live credential, unrelated to this task). 22 new tests (17 unit for ToolOfferingResolver + 5 integration-level for the full registry-to-gateway-request pipeline), zero regressions."

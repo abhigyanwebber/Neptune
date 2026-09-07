@@ -891,3 +891,32 @@ decisions:
       instruction not to automatically expand into fixing them; both
       reported as hardening follow-ups in the final report instead.
     reversible: true
+
+  - id: ADR-A-016
+    made_by: claude-a
+    title: "No new ADR for dynamic tool offering (A-008) -- process note per the mandatory ADR-reservation rule"
+    rationale: >
+      A-008's own brief mandates stopping and reporting to the director
+      before self-assigning any new ADR number, given the repeated
+      parallel-collision history (Review 003's confirmed-mandatory
+      reservation recommendation). Evaluated whether this task makes a
+      genuinely new architectural decision: it does not. ADR-046
+      (B-009) already decided and documented that Core's context dict
+      has no tool-availability concept and that closing this gap
+      requires a per-request mechanism -- this task is the
+      already-anticipated implementation of exactly that mechanism,
+      using entirely pre-existing infrastructure (ToolRegistry from
+      A-003, the capability_bridge from C-006, and run_turn()'s
+      existing, unmodified extra_context parameter). No new contract,
+      no new registry, no new persistence, no new dependency direction.
+      The two implementation choices with real judgment behind them
+      (ToolOfferingResolver's silent-exclusion-of-invalid-filter-entries
+      behavior, and the tool-offering dict's field shape) are
+      implementation details within the shape ADR-046 already
+      described, not new architecture -- consistent with the project's
+      existing practice of documenting such choices in DEVELOPMENT_STATE
+      decisions rather than a dedicated ADR (see ADR-A-014/A-015 for the
+      same pattern in prior tasks). No ADR number was self-assigned;
+      none was requested from the director since none was judged
+      necessary.
+    reversible: true
