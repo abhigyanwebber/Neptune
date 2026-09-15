@@ -22,16 +22,41 @@ tools:
     capability: terminal
     risk_class: R3
     depends_on: [docker]
-    verification_status: candidate
-    notes: "Shell command execution tool. Highest risk class -- depends on sandboxing."
+    verification_status: verified
+    verification_source: "B-010: implemented as neptune.infrastructure.tools.shell_tool.RunCommandTool (model-facing tool name: run_command), registered through the existing ToolRegistryAdapter/ToolExecutorService/ToolPortAdapter boundary (B-004/B-006). Unit + integration tested, no live LLM required."
+    verification_date: "2026-09-05"
+    notes: >
+      Shell command execution tool. Highest risk class. Implemented in
+      B-010 WITHOUT sandbox/container isolation (SANDBOX_CONTRACT.md
+      remains frozen/unimplemented, correctly so) -- the depends_on:
+      [docker] entry above still reflects what real production
+      isolation will eventually require, not what the current
+      implementation literally needs to run. Current boundary: cwd is
+      fixed to an explicit workspace root and cannot be overridden by
+      the caller; no process/network/filesystem isolation beyond that.
+      Per 07_SECURITY/01_THREAT_MODEL.md, this tool is exactly the kind
+      of "destructive shell commands" risk a future policy/permission/
+      sandbox layer is meant to govern -- none of that layer exists yet
+      (07_SECURITY/02_PERMISSION_MODEL.md is a frozen design, zero
+      implementation), so registering this tool does not itself grant
+      any agent permission to use it (TOOL_CONTRACT.md invariant 1).
 
   - tool_id: filesystem
     name: Filesystem
     capability: tool_use
     risk_class: R2
     depends_on: [local_fs]
-    verification_status: candidate
-    notes: "File read/write/edit tool, scoped to a workspace on local_fs."
+    verification_status: verified
+    verification_source: "B-010: implemented as three separate tools in neptune.infrastructure.tools.filesystem_tools (model-facing names: read_file, write_file, list_directory), sharing a WorkspaceBoundary root-escape guard, registered through the existing ToolRegistryAdapter/ToolExecutorService/ToolPortAdapter boundary (B-004/B-006). Unit + integration tested, no live LLM required."
+    verification_date: "2026-09-05"
+    notes: >
+      File read/write/list tool, scoped to an explicit workspace root
+      on local_fs -- path arguments cannot escape that root (absolute
+      paths and .. traversal are both rejected). "Edit" is not a
+      separate operation in this implementation; write_file overwrites
+      the full file content, which is sufficient for read-modify-write
+      via read_file + write_file and matches this task's stated
+      minimum-operations scope.
 
   - tool_id: search
     name: Search
