@@ -769,3 +769,64 @@ assignments:
     registry_modified: "data only (tools.yaml verification metadata), not architecture"
     adr: []
     tests: "265 passed, 6 skipped (unrelated live-credential skips, unchanged from B-009). 41 new tests: 24 filesystem unit, 11 shell unit, 6 integration."
+
+
+  - task_id: B-011-real-coding-agent-tool-use-validation
+    worker_id: B
+    title: "Real Coding-Agent Tool Use Validation"
+    status: complete
+    authorized_by: director
+    scope: >
+      Validation task. Proved a genuinely useful coding/workspace-
+      style task (create NEPTUNE_TOOL_PROOF.txt, read it back, report
+      its exact contents) completed by a real Groq model, using a
+      filesystem tool discovered through the real canonical registry
+      -> ToolOfferingResolver (A-008) -> ModelGateway dynamic-offering
+      path, executed by the real ToolExecutor (B-010), through real
+      AgentRuntime. Found and fixed one real, blocking defect in B's
+      own model_gateway_adapter.py (not core/*, not ToolPort/
+      ToolExecutor/registry): A-008's dynamic offering presents
+      catalog-family tool_ids ("filesystem", "terminal") with empty
+      argument schemas, which do not match B-010's actual, operation-
+      level, ToolExecutor-routable tool names (read_file/write_file/
+      list_directory/run_command) at all -- confirmed empirically
+      before fixing. Added a concrete_tool_definitions constructor
+      parameter and a small local expansion map so the model receives
+      real, schema'd, callable tool definitions; unbacked catalog
+      entries (browser/mcp/search) keep A-008's original degraded
+      behavior unchanged. Found a second, genuinely architectural gap
+      (not fixed, documented and reported for director sign-off, per
+      the ADR Rule): RuntimeDriver's own loop (_run_loop) calls
+      runtime.run_turn(session_id) with no extra_context at all, so
+      dynamic tool offering cannot currently reach a model request
+      through RuntimeDriver.execute_task()/execute_until_stop() --
+      only through calling AgentRuntime.run_turn() directly. Neither
+      RuntimeDriver nor AgentRuntime was modified; this task's own
+      tests reuse RuntimeDriver's existing public should_complete/
+      tool_failed static methods, unchanged, to reproduce Driver's own
+      loop policy in test code only. Live proof: multiple full,
+      successful end-to-end runs against real Groq
+      (openai/gpt-oss-120b) across this task's testing, with an
+      honestly-reported real-model reliability characteristic (see
+      decisions log) -- not hidden or curve-fitted away.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - core.contracts.registry.*
+    runtime_modified: false
+    driver_modified: false
+    adr: []
+    adr_proposed_pending_director: >
+      "RuntimeDriver per-turn context supplementation for dynamic tool
+      offering" -- title only, no number self-assigned, per this
+      task's explicit ADR Rule. See decisions log entry for the full
+      finding and a sketch of the design question for the director.
+    tests: "303 passed with GROQ_API_KEY present (0 skipped, one run); 296 passed, 7 skipped without one (all correctly attributed to the missing credential -- +1 vs B-010's baseline for this task's new live test)."

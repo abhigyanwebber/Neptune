@@ -999,3 +999,93 @@ decisions:
       A's dynamic-offering layer is expected to sit in front of.
     reversible: true
     note: "Process/dependency finding, not an architecture decision."
+
+  - id: B-DEC-030
+    task_id: B-011-real-coding-agent-tool-use-validation
+    decision: >
+      Found and fixed a real, blocking defect: A-008's
+      ToolOfferingResolver.available_tools() returns catalog-family
+      dicts (tool_id: "filesystem"/"terminal") with empty
+      parameters_schema, and model_gateway_adapter.py's
+      _offering_dicts_to_tool_definitions() previously translated each
+      1:1 into a ToolDefinition named after the catalog tool_id --
+      neither "filesystem" nor "terminal" matches any name
+      ToolExecutorService actually routes on (read_file/write_file/
+      list_directory/run_command, from B-010), and the empty schema
+      gave a model no argument guidance even if it somehow called one.
+      Confirmed empirically (a throwaway script comparing the
+      resolver's live output against ToolRegistryAdapter.list_tools())
+      before fixing, not assumed. Fix: added a
+      concrete_tool_definitions constructor parameter and a local
+      _CATALOG_TOOL_ID_TO_CONCRETE_NAMES map
+      ("filesystem"->[read_file,write_file,list_directory],
+      "terminal"->[run_command]); offerings for a known family are
+      expanded into the real, schema'd definitions the caller passes;
+      unbacked catalog entries (browser/mcp/search) are untouched,
+      keeping A-008's degraded-but-harmless fallback. Confined
+      entirely to model_gateway_adapter.py (B's own file); no core/*,
+      ToolPort, ToolExecutor, or registry change. Verified against
+      A-008's own existing 28 gateway/offering tests (unchanged,
+      still passing) before adding new coverage.
+    reversible: true
+
+  - id: B-DEC-031
+    task_id: B-011-real-coding-agent-tool-use-validation
+    decision: >
+      Found a second, genuinely architectural gap while building the
+      live proof: RuntimeDriver._run_loop() calls
+      self._runtime.run_turn(session_id) with no extra_context
+      parameter at all (confirmed by reading driver.py directly, not
+      inferred) -- there is currently no way for dynamic tool offering
+      (or any other per-turn extra_context) to reach a model request
+      through RuntimeDriver.execute_task()/execute_until_stop().
+      Per this task's ADR Rule ("stop before creating the ADR; report
+      the proposed decision/title to the director; wait for an
+      assigned number"), did NOT modify RuntimeDriver or invent a
+      workaround inside it. Instead, this task's own tests call
+      AgentRuntime.run_turn(session_id, extra_context=...) directly
+      (an already-existing, unmodified capability) and reuse
+      RuntimeDriver's own public, stateless policy methods
+      (should_complete, tool_failed, should_continue) unchanged, to
+      reproduce Driver's exact loop policy in test code only --
+      proving the maximum real path available without inventing any
+      new production mechanism, matching the same principle B-009's
+      Phase 4 established for a different composability gap.
+      Proposed decision title for the director, no number self-
+      assigned: "RuntimeDriver per-turn context supplementation for
+      dynamic tool offering." Sketch of the open design question:
+      should RuntimeDriver accept a context-supplier callback/
+      resolver at construction and call it internally each turn, or
+      should execute_task()/execute_until_stop() gain their own
+      per-turn extra_context parameter (harder to use correctly across
+      a multi-turn loop where offerings might need to change turn to
+      turn), or something else -- left entirely to the director/
+      whoever picks this up, not decided here.
+    reversible: false
+    note: "Architectural finding requiring director sign-off before any implementation, per this task's explicit ADR Rule -- not implemented, not an ADR file created."
+
+  - id: B-DEC-032
+    task_id: B-011-real-coding-agent-tool-use-validation
+    decision: >
+      Live testing showed a real-model reliability characteristic
+      worth reporting honestly rather than curve-fitting away:
+      openai/gpt-oss-120b reliably discovers the dynamically-offered
+      filesystem tool, calls write_file then read_file correctly, and
+      receives an accurate observation (confirmed present in the
+      actual next-turn model_request dict, not just assumed) -- but
+      does not consistently decide to stop calling tools and finalize
+      immediately after a successful read; it sometimes re-calls
+      read_file once more before answering. Across this task's live
+      testing (varying max_turns from 4 to 6, and prompt wording once,
+      strengthening the stop instruction), roughly half of runs
+      produced a strict single-read completion and the other half
+      needed an extra tool round before finalizing -- both are correct,
+      safe, successful completions from the architecture's point of
+      view (every read returned the right content, no errors, no
+      infinite loop -- max_turns still bounds it), the variance is
+      purely in how many turns the model personally needed. Increased
+      the test's max_turns from 4 to 6 to accommodate this without
+      spuriously failing on the architecturally-successful-but-slower
+      path. This is model behavior, not an architectural defect;
+      reported precisely rather than treated as flakiness to hide.
+    reversible: true

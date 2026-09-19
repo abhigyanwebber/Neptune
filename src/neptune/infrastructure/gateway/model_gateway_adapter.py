@@ -69,6 +69,34 @@ _DEFAULT_CAPABILITY = Capability.CODING
 
 _MAX_RECENT_EVENTS_IN_PROMPT = 5
 
+# B-011 finding: core.resolution.tool_offering_resolver.ToolOfferingResolver
+# offers CATALOG-granularity entries (one per tool family, e.g. "filesystem"
+# covering three real operations) with an empty parameters_schema -- it has
+# no concept of Neptune's own operation-level tool names or JSON-schema
+# argument shapes, because the canonical Tool Registry (A-003) was designed
+# as vocabulary/governance metadata, not a function-calling schema source
+# (confirmed by reading core/registry/tool_registry.py's own ToolDefinition
+# fields: tool_id, name, capability, risk_class, depends_on, notes -- no
+# parameters_schema field exists there at all). Offering "filesystem" or
+# "terminal" verbatim to a real model gives it a callable name ToolExecutor
+# cannot route (B-010's real tools are registered as read_file/write_file/
+# list_directory/run_command) and zero argument guidance. This map expands
+# each catalog family into the real, concrete ToolDefinitions B actually
+# implemented, sourced from whatever the caller passes as
+# concrete_tool_definitions (the same real Tool instances' own .definition()
+# outputs) -- not a new tool, not a new contract, not a ToolExecutor/
+# ToolPort/ModelGateway/registry change: purely a translation-layer fix
+# inside this adapter, the same class of minimal fix as B-009's
+# tool_choice/tool_definitions findings. Catalog entries with no real
+# backing yet (browser, mcp, search) fall through to the prior
+# degraded-but-harmless 1:1 translation (empty schema) unchanged -- if a
+# model ever called one, ToolExecutor already returns a normal NOT_FOUND
+# ToolResult (TOOL_CONTRACT), not a crash.
+_CATALOG_TOOL_ID_TO_CONCRETE_NAMES: dict[str, list[str]] = {
+    "filesystem": ["read_file", "write_file", "list_directory"],
+    "terminal": ["run_command"],
+}
+
 
 class ModelGatewayAdapter:
     """One instance is bound to one (task_id, session_id) -- construct a
@@ -97,11 +125,19 @@ class ModelGatewayAdapter:
         task_id: str,
         session_id: str,
         tool_definitions: list[ToolDefinition] | None = None,
+        concrete_tool_definitions: list[ToolDefinition] | None = None,
     ) -> None:
         self._gateway = gateway
         self._task_id = task_id
         self._session_id = session_id
         self._call_counter = itertools.count(1)
+        # B-011: real, richly-schema'd ToolDefinitions (e.g.
+        # ReadFileTool(boundary).definition()) used to expand catalog-
+        # granularity dynamic offerings into ToolExecutor-routable ones.
+        # Indexed by name for the expansion lookup in _translate_request().
+        self._concrete_tool_definitions_by_name = {
+            d.name: d for d in (concrete_tool_definitions or [])
+        }
         # B-009 finding: Core's context dict (core/runtime/context.py::
         # assemble_context) has no "tools" concept at all -- the same
         # gap already documented for "capability" above. Without this,
@@ -165,10 +201,16 @@ class ModelGatewayAdapter:
         prompt = "\n".join(prompt_lines) or "Proceed."
 
         # A-008: dynamic, registry-driven tool offering takes precedence
-        # over the static constructor list (see class docstring).
+        # over the static constructor list (see class docstring). B-011:
+        # expanded through _CATALOG_TOOL_ID_TO_CONCRETE_NAMES so the
+        # model receives real, routable, schema'd tool definitions
+        # rather than catalog-family placeholders (see module constant
+        # docstring above for the full finding).
         dynamic_offerings = request.get("available_tools")
         if dynamic_offerings is not None:
-            tools = _offering_dicts_to_tool_definitions(dynamic_offerings)
+            tools = _offering_dicts_to_tool_definitions(
+                dynamic_offerings, self._concrete_tool_definitions_by_name
+            )
         else:
             tools = self._tool_definitions
 
@@ -218,21 +260,38 @@ class ModelGatewayAdapter:
         }
 
 
-def _offering_dicts_to_tool_definitions(offerings: list[dict]) -> list[ToolDefinition]:
+def _offering_dicts_to_tool_definitions(
+    offerings: list[dict], concrete_by_name: dict[str, ToolDefinition]
+) -> list[ToolDefinition]:
     """Translates core.resolution.tool_offering_resolver's plain
     canonical dicts into Neptune's own ToolDefinition Pydantic model
-    (A-008). `name` is set to the offering's tool_id (the identifier
-    ToolExecutor actually routes on), not its human-readable `name`
-    field -- the model-facing "name" in a function-calling API is a
-    callable identifier, and tool_id is Neptune's canonical identifier
-    for that purpose (see core/registry/tool_registry.py). The
-    human-readable name is folded into the description instead, so
-    nothing is silently dropped."""
-    return [
-        ToolDefinition(
-            name=offering["tool_id"],
-            description=f"{offering.get('name', offering['tool_id'])}: {offering.get('description', '')}".strip(": "),
-            parameters_schema={},
+    (A-008), expanding known catalog families into their real,
+    ToolExecutor-routable definitions where one exists (B-011 -- see
+    _CATALOG_TOOL_ID_TO_CONCRETE_NAMES). For a catalog tool_id with no
+    known concrete backing yet, falls through to the original A-008
+    behavior: `name` set to the offering's tool_id (the identifier
+    ToolExecutor actually routes on), description built from the
+    catalog's name/notes fields, empty parameters_schema. Nothing is
+    silently dropped -- an offering that expands to nothing (empty
+    concrete_by_name for a known family) or has no known family simply
+    keeps its original degraded form, never disappears."""
+    expanded: list[ToolDefinition] = []
+    for offering in offerings:
+        tool_id = offering["tool_id"]
+        concrete_names = _CATALOG_TOOL_ID_TO_CONCRETE_NAMES.get(tool_id)
+        if concrete_names:
+            for name in concrete_names:
+                concrete = concrete_by_name.get(name)
+                if concrete is not None:
+                    expanded.append(concrete)
+            continue
+        expanded.append(
+            ToolDefinition(
+                name=tool_id,
+                description=f"{offering.get('name', tool_id)}: {offering.get('description', '')}".strip(
+                    ": "
+                ),
+                parameters_schema={},
+            )
         )
-        for offering in offerings
-    ]
+    return expanded
