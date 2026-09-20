@@ -769,3 +769,45 @@ assignments:
     registry_modified: "data only (tools.yaml verification metadata), not architecture"
     adr: []
     tests: "265 passed, 6 skipped (unrelated live-credential skips, unchanged from B-009). 41 new tests: 24 filesystem unit, 11 shell unit, 6 integration."
+
+  - task_id: NEPTUNE-DIRECTOR-REVIEW-004
+    worker_id: A
+    title: "RuntimeDriver Context Plumbing Review"
+    status: complete
+    authorized_by: director
+    mode: read-only-architecture-review
+    deliverable: "DIRECTOR_REVIEW_004.md"
+    verdict: "PROCEED WITH CORRECTIONS"
+    code_modified: false
+    contracts_modified: false
+    architecture_modified: false
+    seam_confirmed: >
+      driver.py:148 calls self._runtime.run_turn(session_id) with no
+      extra_context. AgentRuntime.run_turn(session_id, extra_context=None)
+      has accepted and correctly merged per-turn context since Stage 2
+      (engine.py:147, :173-175). RuntimeDriver is simply failing to pass
+      through an abstraction AgentRuntime already exposes correctly --
+      an API-completeness gap, not an architectural flaw. Confirmed by
+      direct file reading, not inferred.
+    recommended_design: >
+      Option C minimal -- optional context_provider callable at
+      RuntimeDriver construction, invoked once per turn, result passed to
+      run_turn(..., extra_context=...). Touches 2 places (__init__ and
+      _run_loop), fewer than the per-call-parameter alternative, while
+      preserving A-008's request-time freshness. Zero coupling: Core sees
+      only Callable[[str], dict[str, Any]]. Fully additive -- every
+      existing caller is a test, and default None reproduces current
+      behavior exactly.
+    proposed_next_task: "A-009 -- RuntimeDriver Per-Turn Context Provider (owner: Claude A; Core/control-plane lane)"
+    adr_proposed_awaiting_director_number: >
+      "RuntimeDriver per-turn context supplementation via an injected
+      context provider" -- consolidates B-011's B-DEC-031 proposal. No
+      number self-assigned, per the mandatory ADR-reservation rule.
+      Auditor leans toward assigning one (future per-turn-context channel
+      precedent), but flagged both sides for the director to decide.
+    branch_discrepancy_reported: >
+      worker/claude-a (1b03f00) is one commit behind main (4e25c94,
+      B-011); git log main..worker/claude-a is empty, so a clean
+      fast-forward resolves it. Did not merge, per the no-guessing and
+      no-history-rewriting instructions.
+    tests: "worker/claude-a: 287 passed, 6 skipped. main (with B-011): 296 passed, 7 skipped -- matches B-011's own reported no-credential baseline exactly. All skips live-credential (no GROQ_API_KEY available to the auditor); no live-provider results claimed."
