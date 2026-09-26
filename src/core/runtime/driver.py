@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from core.domain.checkpoint import Checkpoint
 from core.domain.task import Task
@@ -35,6 +35,16 @@ from .engine import AgentRuntime
 # the driver never touches that constant, it only respects that a turn
 # will eventually return regardless of what the model does inside it.
 DEFAULT_MAX_TURNS = 25
+
+# A-009: the smallest type that lets a caller supply fresh per-turn context
+# (e.g. dynamically-offered tools, A-008) without RuntimeDriver knowing
+# anything about *what* that context is or where it comes from. No
+# arguments -- a caller who needs per-session/per-task identity to compute
+# the context captures it in a closure (e.g. a lambda over
+# ToolOfferingResolver.available_tools()). Kept as a plain type alias, not
+# a Protocol class or framework, per the brief's "do not add a framework
+# around one callable."
+ContextProvider = Callable[[], dict[str, Any]]
 
 
 class DriverOutcome(str, Enum):
@@ -61,9 +71,27 @@ class DriverResult:
 
 
 class RuntimeDriver:
-    def __init__(self, runtime: AgentRuntime, config: Optional[DriverConfig] = None) -> None:
+    """Uses AgentRuntime exclusively through its public methods -- see
+    module docstring for the replaceability rationale.
+
+    A-009: accepts an optional `context_provider` (see ContextProvider
+    above) invoked once per turn to supply fresh per-turn context (e.g.
+    dynamically-offered tools) to AgentRuntime.run_turn(). RuntimeDriver
+    does not import core.resolution, ToolOfferingResolver, the registry,
+    or anything provider-specific -- it only knows a zero-argument
+    callable exists and returns a dict. When absent (the default), turns
+    run exactly as they did before this parameter existed:
+    run_turn(session_id, extra_context=None), byte-for-byte unchanged."""
+
+    def __init__(
+        self,
+        runtime: AgentRuntime,
+        config: Optional[DriverConfig] = None,
+        context_provider: Optional[ContextProvider] = None,
+    ) -> None:
         self._runtime = runtime
         self._config = config or DriverConfig()
+        self._context_provider = context_provider
 
     # ------------------------------------------------------------------
     # Entry points
@@ -145,7 +173,11 @@ class RuntimeDriver:
         turn_index = turns_already_run
 
         while turn_index < self._config.max_turns:
-            turn = self._runtime.run_turn(session_id)
+            # A-009: recomputed every turn, never cached -- a provider
+            # capturing e.g. ToolOfferingResolver.available_tools() needs
+            # fresh output as the task/session state evolves turn to turn.
+            extra_context = self._context_provider() if self._context_provider is not None else None
+            turn = self._runtime.run_turn(session_id, extra_context=extra_context)
             turns_run.append(turn)
             turn_index += 1
 

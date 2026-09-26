@@ -160,3 +160,135 @@ def test_checkpoint_every_zero_disables_periodic_checkpoints_but_completion_stil
     assert result.outcome == DriverOutcome.COMPLETED
     assert result.last_checkpoint is not None
     assert result.last_checkpoint.label == "final"
+
+
+# --- A-009: RuntimeDriver context_provider plumbing -----------------------
+
+
+def test_no_provider_runs_turns_with_extra_context_none():
+    """Backward compatibility: omitting context_provider must produce the
+    exact same run_turn(session_id, extra_context=None) call as before
+    this parameter existed."""
+    gateway = FakeModelGateway(scripted_responses=[{"content": "done", "tool_calls": []}])
+    runtime = _build_runtime(gateway, FakeToolPort())
+    driver = RuntimeDriver(runtime)
+
+    result = driver.execute_task("task-no-provider")
+
+    assert result.outcome == DriverOutcome.COMPLETED
+    assert gateway.requests_received[0].get("available_tools") is None
+
+
+def test_context_provider_called_once_per_turn():
+    calls: list[int] = []
+
+    def provider() -> dict[str, Any]:
+        calls.append(1)
+        return {"available_tools": ["read_file"]}
+
+    gateway = FakeModelGateway(
+        scripted_responses=[
+            {"content": "checking", "tool_calls": [{"tool_name": "read_file", "args": {}}]},
+            {"content": "checking again", "tool_calls": [{"tool_name": "read_file", "args": {}}]},
+            {"content": "done", "tool_calls": []},
+        ]
+    )
+    runtime = _build_runtime(gateway, FakeToolPort())
+    driver = RuntimeDriver(runtime, context_provider=provider)
+
+    result = driver.execute_task("task-provider-count")
+
+    assert result.outcome == DriverOutcome.COMPLETED
+    assert len(result.turns_run) == 3
+    assert len(calls) == 3  # exactly once per turn, not once total
+
+
+def test_context_provider_output_reaches_run_turn_extra_context():
+    def provider() -> dict[str, Any]:
+        return {"available_tools": ["read_file", "write_file"]}
+
+    gateway = FakeModelGateway(scripted_responses=[{"content": "done", "tool_calls": []}])
+    runtime = _build_runtime(gateway, FakeToolPort())
+    driver = RuntimeDriver(runtime, context_provider=provider)
+
+    result = driver.execute_task("task-provider-propagation")
+
+    turn = result.turns_run[0]
+    # extra_context is merged into the context AgentRuntime.run_turn sends
+    # to the gateway and records as turn.model_request (engine.py).
+    assert turn.model_request["available_tools"] == ["read_file", "write_file"]
+    assert gateway.requests_received[0]["available_tools"] == ["read_file", "write_file"]
+
+
+def test_context_provider_gives_fresh_value_per_turn():
+    seen = {"n": 0}
+
+    def provider() -> dict[str, Any]:
+        seen["n"] += 1
+        return {"turn_marker": seen["n"]}
+
+    gateway = FakeModelGateway(
+        scripted_responses=[
+            {"content": "checking", "tool_calls": [{"tool_name": "read_file", "args": {}}]},
+            {"content": "done", "tool_calls": []},
+        ]
+    )
+    runtime = _build_runtime(gateway, FakeToolPort())
+    driver = RuntimeDriver(runtime, context_provider=provider)
+
+    result = driver.execute_task("task-provider-freshness")
+
+    assert result.turns_run[0].model_request["turn_marker"] == 1
+    assert result.turns_run[1].model_request["turn_marker"] == 2
+
+
+def test_context_provider_exception_is_not_swallowed():
+    class ProviderError(RuntimeError):
+        pass
+
+    def provider() -> dict[str, Any]:
+        raise ProviderError("boom")
+
+    gateway = FakeModelGateway(scripted_responses=[{"content": "done", "tool_calls": []}])
+    runtime = _build_runtime(gateway, FakeToolPort())
+    driver = RuntimeDriver(runtime, context_provider=provider)
+
+    with pytest.raises(ProviderError):
+        driver.execute_task("task-provider-exception")
+
+    # Nothing was sent to the model -- the provider failed before run_turn.
+    assert gateway.requests_received == []
+
+
+def test_execute_until_stop_recomputes_context_after_resume():
+    """Recovery compatibility: a context_provider supplied to a driver
+    that resumes an in-progress task (execute_until_stop) still gets
+    invoked fresh for the turn(s) run after resuming, same as a
+    provider on a driver that never stopped."""
+    seen: list[int] = []
+
+    def provider() -> dict[str, Any]:
+        seen.append(1)
+        return {"resumed": True}
+
+    gateway = FakeModelGateway(
+        default_response_fn=lambda req: {
+            "content": "still working",
+            "tool_calls": [{"tool_name": "read_file", "args": {}}],
+        }
+    )
+    runtime = _build_runtime(gateway, FakeToolPort())
+
+    partial_driver = RuntimeDriver(runtime, config=DriverConfig(max_turns=2), context_provider=provider)
+    partial = partial_driver.execute_task("task-resume-context")
+    assert partial.outcome == DriverOutcome.STOPPED_MAX_TURNS
+    assert len(seen) == 2
+
+    # A fresh RuntimeDriver instance (simulating a new process) with its
+    # own provider, resuming the same task.
+    resumed_driver = RuntimeDriver(runtime, config=DriverConfig(max_turns=3), context_provider=provider)
+    resumed = resumed_driver.execute_until_stop("task-resume-context")
+
+    assert resumed.outcome == DriverOutcome.STOPPED_MAX_TURNS
+    assert len(seen) == 3  # one more call for the one additional turn run
+    assert resumed.turns_run[-1].model_request["resumed"] is True

@@ -10,18 +10,28 @@ FakeModelGateway. No parallel fake tool/offering/observation
 implementation is used anywhere in this file.
 
 Design note (see model_gateway_adapter.py's module docstring and
-DEVELOPMENT_STATE/decisions.yaml for the full B-011 finding): this
-test drives turns via AgentRuntime.run_turn(..., extra_context=...)
-directly rather than through RuntimeDriver.execute_task(), because
-RuntimeDriver's own _run_loop() calls run_turn(session_id) with no
-extra_context at all -- there is currently no way for dynamic tool
-offering to reach a model request through Driver's convenience loop.
-This test does NOT modify RuntimeDriver or AgentRuntime; it reuses
-RuntimeDriver's own public, stateless policy methods
-(should_complete, tool_failed) unchanged, and AgentRuntime's own
-existing checkpoint()/complete_task() primitives, to reproduce
+DEVELOPMENT_STATE/decisions.yaml for the full B-011 finding): most
+tests below drive turns via AgentRuntime.run_turn(..., extra_context=...)
+directly rather than through RuntimeDriver.execute_task(), because at
+the time B-011 was written, RuntimeDriver's own _run_loop() called
+run_turn(session_id) with no extra_context at all -- there was no way
+for dynamic tool offering to reach a model request through Driver's
+convenience loop. These tests do NOT modify RuntimeDriver or
+AgentRuntime; they reuse RuntimeDriver's own public, stateless policy
+methods (should_complete, tool_failed) unchanged, and AgentRuntime's
+own existing checkpoint()/complete_task() primitives, to reproduce
 exactly the same loop policy Driver would apply, using only already-
 existing public APIs.
+
+A-009 closed that gap (RuntimeDriver now accepts an optional
+`context_provider` invoked once per turn). The final test in this
+file,
+test_full_agent_loop_with_real_dynamic_offering_through_runtime_driver,
+exercises the same real dynamic-offering + real-filesystem-tool
+composition as the first test above, but through
+RuntimeDriver.execute_task() itself rather than the hand-rolled loop
+helper -- i.e. dynamic tool offering flowing through the *normal*
+Driver convenience path, not a bypass of it.
 """
 from __future__ import annotations
 
@@ -273,3 +283,89 @@ def test_boundary_violation_surfaces_through_the_full_dynamic_offering_loop(tmp_
     # The task still reaches a normal terminal state -- a boundary
     # violation is a structured tool failure, not a crash.
     assert outcome in ("stopped_tool_failure", "completed")
+
+
+def test_full_agent_loop_with_real_dynamic_offering_through_runtime_driver(tmp_path) -> None:
+    """A-009 composition proof: the same real dynamic-offering + real
+    filesystem-tool path as the first test in this file, but driven
+    through RuntimeDriver.execute_task() with a context_provider --
+    not the hand-rolled _run_loop_with_extra_context() helper. This is
+    the "normal RuntimeDriver execution" the A-009 brief requires."""
+    task_id = f"a009-driver-dynamic-{uuid.uuid4().hex[:8]}"
+
+    engine = make_engine(get_database_url())
+    create_all_tables(engine)
+    sf = make_session_factory(engine)
+    canonical_tool_registry = CanonicalToolRegistry(SqlAlchemyToolDefinitionRepository(sf))
+    load_tools_result = load_tools(Path("06_REGISTRIES/data/tools.yaml"), canonical_tool_registry)
+    assert load_tools_result.errors == []
+    resolver = ToolOfferingResolver(canonical_tool_registry)
+
+    boundary = WorkspaceBoundary(tmp_path)
+    real_fs_tools = [ReadFileTool(boundary), WriteFileTool(boundary)]
+
+    gateway = FakeModelGateway(
+        scripted_responses=[
+            {
+                "content": "writing the file",
+                "tool_calls": [
+                    {"tool_name": "write_file", "args": {"path": "A009_PROOF.txt", "content": TARGET_CONTENT}}
+                ],
+            },
+            {
+                "content": f"Done. The file contains exactly: {TARGET_CONTENT}",
+                "tool_calls": [],
+            },
+        ]
+    )
+
+    session_id_hint = f"{task_id}-session"
+    real_executor = ToolExecutorService(ToolRegistryAdapter(real_fs_tools))
+    tool_port = ToolPortAdapter(real_executor, task_id=task_id, session_id=session_id_hint)
+
+    runtime = AgentRuntime(
+        task_repo=SqlAlchemyTaskRepository(sf),
+        agent_repo=SqlAlchemyAgentRepository(sf),
+        session_repo=SqlAlchemySessionRepository(sf),
+        turn_repo=SqlAlchemyTurnRepository(sf),
+        event_repo=SqlAlchemyEventRepository(sf),
+        checkpoint_repo=SqlAlchemyCheckpointRepository(sf),
+        model_gateway=gateway,
+        tool_port=tool_port,
+    )
+
+    # The provider is a closure over the resolver -- RuntimeDriver never
+    # imports or knows about ToolOfferingResolver itself (A-009 constraint).
+    def context_provider() -> dict:
+        offerings = resolver.available_tools(capability_ids=["tool_use"])
+        return {"available_tools": offerings}
+
+    driver = RuntimeDriver(runtime, context_provider=context_provider)
+    result = driver.execute_task(
+        task_id,
+        requirements=[
+            f'Create a file named A009_PROOF.txt containing exactly: {TARGET_CONTENT}. '
+            "Then read the file back and report its exact contents."
+        ],
+    )
+
+    # --- Dynamic offering proof: reached the model through Driver itself ---
+    assert len(result.turns_run) == 2
+    turn_1 = result.turns_run[0]
+    assert turn_1.model_request["available_tools"][0]["tool_id"] == "filesystem"
+    assert turn_1.model_response["tool_calls"] == [
+        {"tool_name": "write_file", "args": {"path": "A009_PROOF.txt", "content": TARGET_CONTENT}}
+    ]
+
+    # --- Real tool execution proof ---
+    write_observation = turn_1.tool_calls[0]["observation"]
+    assert write_observation["status"] == "ok"
+    real_file = tmp_path / "A009_PROOF.txt"
+    assert real_file.exists()
+    assert real_file.read_text() == TARGET_CONTENT
+
+    # --- Driver-owned completion/checkpoint proof ---
+    assert result.outcome.value == "completed"
+    assert result.task is not None
+    assert result.task.status.value == "completed"
+    assert result.last_checkpoint is not None
