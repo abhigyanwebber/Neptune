@@ -55,6 +55,15 @@ class ToolOutcome(str, Enum):
     ERROR = "error"
     TIMEOUT = "timeout"
     NOT_FOUND = "not_found"
+    # Permission layer (B-012) rejected this call before the tool's own
+    # execute() ran -- distinct from ERROR (the tool itself failed) so
+    # a caller can tell "the tool broke" apart from "the tool was never
+    # allowed to run". Still surfaces to ToolPortAdapter as
+    # status="error" (any non-SUCCESS outcome does), so no change is
+    # required to RuntimeDriver's tool_failed() check; outcome=DENIED
+    # and error_message carry the distinguishing detail for anything
+    # that wants to branch on it specifically.
+    DENIED = "denied"
 
 
 class ToolResult(BaseModel):
