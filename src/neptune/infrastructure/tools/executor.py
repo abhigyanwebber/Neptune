@@ -24,6 +24,10 @@ from neptune.core.contracts.tool_execution import (
     ToolRegistry,
     ToolResult,
 )
+from neptune.infrastructure.security.permission_policy import (
+    DefaultPermissionPolicy,
+    PermissionPolicy,
+)
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
 DEFAULT_MAX_OUTPUT_BYTES = 32_000
@@ -44,10 +48,17 @@ class ToolExecutorService:
         registry: ToolRegistry,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
+        permission_policy: PermissionPolicy | None = None,
     ) -> None:
         self._registry = registry
         self._timeout_seconds = timeout_seconds
         self._max_output_bytes = max_output_bytes
+        # Secure by default (B-012): callers that want the previous
+        # unrestricted behavior must pass an explicit policy whose
+        # evaluate() always returns ALLOW -- there is no "off" switch
+        # baked in here, matching 02_PERMISSION_MODEL.md's precedence
+        # (a deny should prevent execution "when practical").
+        self._permission_policy = permission_policy or DefaultPermissionPolicy()
         self._pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="neptune-tool-exec")
 
     def execute(self, call: ToolCall) -> ToolResult:
@@ -57,6 +68,16 @@ class ToolExecutorService:
             tool = self._registry.get(call.tool_name)
         except ToolNotFoundError as exc:
             return self._result(call, start, ToolOutcome.NOT_FOUND, error_message=str(exc))
+
+        # Permission evaluation happens after tool lookup (so an
+        # unknown tool still reports NOT_FOUND, not a confusing denial)
+        # but strictly before tool.execute() -- invariant: a denied
+        # call must never reach the tool's own side effects.
+        verdict = self._permission_policy.evaluate(call)
+        if not verdict.allowed:
+            return self._result(
+                call, start, ToolOutcome.DENIED, error_message=verdict.reason
+            )
 
         future = self._pool.submit(tool.execute, call.arguments)
         try:
