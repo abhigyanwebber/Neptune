@@ -24,8 +24,15 @@ from neptune.core.contracts.tool_execution import (
     ToolRegistry,
     ToolResult,
 )
+from neptune.infrastructure.security.approval import (
+    ApprovalDecision,
+    ApprovalError,
+    ApprovalProvider,
+    AutoRejectApprovalProvider,
+)
 from neptune.infrastructure.security.permission_policy import (
     DefaultPermissionPolicy,
+    PermissionDecision,
     PermissionPolicy,
 )
 
@@ -49,6 +56,7 @@ class ToolExecutorService:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
         permission_policy: PermissionPolicy | None = None,
+        approval_provider: ApprovalProvider | None = None,
     ) -> None:
         self._registry = registry
         self._timeout_seconds = timeout_seconds
@@ -59,6 +67,11 @@ class ToolExecutorService:
         # baked in here, matching 02_PERMISSION_MODEL.md's precedence
         # (a deny should prevent execution "when practical").
         self._permission_policy = permission_policy or DefaultPermissionPolicy()
+        # B-013: consulted only for ASK verdicts. Defaults to
+        # AutoRejectApprovalProvider -- fail-closed, since no real
+        # approval channel exists yet; a caller that wants a working
+        # ASK path must pass an explicit provider.
+        self._approval_provider = approval_provider or AutoRejectApprovalProvider()
         self._pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="neptune-tool-exec")
 
     def execute(self, call: ToolCall) -> ToolResult:
@@ -72,12 +85,36 @@ class ToolExecutorService:
         # Permission evaluation happens after tool lookup (so an
         # unknown tool still reports NOT_FOUND, not a confusing denial)
         # but strictly before tool.execute() -- invariant: a denied
-        # call must never reach the tool's own side effects.
+        # or unapproved call must never reach the tool's own side
+        # effects.
         verdict = self._permission_policy.evaluate(call)
-        if not verdict.allowed:
+        if verdict.decision == PermissionDecision.DENY:
             return self._result(
                 call, start, ToolOutcome.DENIED, error_message=verdict.reason
             )
+
+        if verdict.decision == PermissionDecision.ASK:
+            try:
+                approval = self._approval_provider.decide(call, verdict)
+            except ApprovalError as exc:
+                # Fail closed: the approval channel itself failing is
+                # not a decision, and must never be treated as one --
+                # this is exactly as unexecuted as an explicit REJECTED.
+                return self._result(
+                    call,
+                    start,
+                    ToolOutcome.DENIED,
+                    error_message=f"ask: {verdict.reason}; approval unavailable: {exc}",
+                )
+            if approval != ApprovalDecision.APPROVED:
+                return self._result(
+                    call,
+                    start,
+                    ToolOutcome.DENIED,
+                    error_message=f"ask: {verdict.reason}; rejected by approval provider",
+                )
+            # Approved: falls through to the same execution path below
+            # as an ordinary ALLOW -- no second execution route.
 
         future = self._pool.submit(tool.execute, call.arguments)
         try:
