@@ -872,3 +872,83 @@ assignments:
       fast-forward resolves it. Did not merge, per the no-guessing and
       no-history-rewriting instructions.
     tests: "worker/claude-a: 287 passed, 6 skipped. main (with B-011): 296 passed, 7 skipped -- matches B-011's own reported no-credential baseline exactly. All skips live-credential (no GROQ_API_KEY available to the auditor); no live-provider results claimed."
+
+
+  - task_id: NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION
+    worker_id: A
+    title: "Goal-to-Execution Integration"
+    status: complete
+    authorized_by: director
+    depends_on: [A-009, A-010, B-012, NEPTUNE-DIRECTOR-REVIEW-005]
+    scope: >
+      Closed the seam DIRECTOR_REVIEW_005.md identified: GoalPlanner's
+      output never reached AgentRuntime/RuntimeDriver. Added
+      src/core/planning/plan_runner.py (PlanRunner, PlanRunResult,
+      StepExecutionResult, DriverFactory type alias) -- a pure
+      sequencer with no new execution architecture: for each
+      PlanExecutor.select_next_step() result, calls
+      RuntimeDriver.execute_task() (unmodified) on a caller-supplied,
+      per-task-id RuntimeDriver built by an injected `driver_factory`
+      closure (same "inject a callable, own nothing inside it" pattern
+      as A-009's context_provider), then reflects the real
+      DriverOutcome back into PlanExecutor.complete_step()/fail_step()
+      (unmodified, A-007) -- COMPLETED is the only outcome mapped to
+      success; every other outcome (tool failure, permission denial,
+      max-turns) maps to fail_step(), which cascades SKIPPED to
+      dependents via PlanExecutor's own existing, unmodified logic.
+      One Plan step = one fresh RuntimeDriver.execute_task() call with
+      a deterministic task_id (f"{plan.plan_id}-{step.step_id}"),
+      matching the existing "construct fresh per task" adapter
+      lifecycle (ModelGatewayAdapter/ToolPortAdapter docstrings,
+      B-008/B-006) rather than introducing a new one.
+      GoalPlanner, PlanExecutor, RuntimeDriver, AgentRuntime,
+      ToolOfferingResolver, ToolExecutorService, and
+      DefaultPermissionPolicy are all reused completely unmodified --
+      PlanRunner never constructs a ToolExecutor, tool registry,
+      permission policy, or model gateway itself; that composition is
+      entirely the driver_factory closure's responsibility, injected
+      by the caller (test or, in future, a real entry point), exactly
+      as it already was for every prior RuntimeDriver caller.
+    contracts_implemented: []
+    contracts_not_modified:
+      - MODEL_CONTRACT
+      - PROVIDER_CONTRACT
+      - ROUTER_CONTRACT
+      - TOOL_CONTRACT
+      - PERMISSION_CONTRACT
+      - RUNTIME_CONTRACT
+      - OBSERVABILITY_CONTRACT
+      - core.contracts.gateway.ModelGatewayPort
+      - core.contracts.tools.ToolPort
+      - core.contracts.planning.PlanRepository
+      - core.planning.executor.PlanExecutor
+      - core.runtime.driver.RuntimeDriver
+      - core.runtime.engine.AgentRuntime
+    runtime_modified: false
+    driver_modified: false
+    planner_modified: false
+    permission_modified: false
+    second_execution_architecture_introduced: false
+    adr: []
+    new_adr: false # a sequencing/composition task over already-decided contracts (RuntimeDriver's context_provider, PlanExecutor's step lifecycle, B-012's permission policy) -- no new architectural decision made
+    tests: >
+      349 collected, 0 failed. 340 passed, 9 skipped without
+      GROQ_API_KEY (8 pre-existing live-credential skips, unchanged,
+      +1 new live goal-to-execution test, correctly attributed and
+      not fabricated). 8 new tests total: 4 unit
+      (tests/unit/planning/test_plan_runner.py, FakeModelGateway/
+      FakeToolPort + SQLite) and 4 new integration tests
+      (tests/integration/planning/test_goal_to_execution.py, real
+      canonical tool registry + real ToolOfferingResolver + real
+      ToolExecutorService/DefaultPermissionPolicy + real filesystem/
+      shell tools + Postgres, 1 of the 4 live-gated): real goal ->
+      real Plan -> real 2-step execution with real file I/O; a real
+      denied shell command blocking a step (marker-file proof, no
+      side effect) and cascading SKIPPED to its dependent, exactly as
+      B-012's own test proves for a direct ToolExecutorService call,
+      now proven through the full PlanRunner path instead; and a
+      PlanRunner-originated task_id resuming via
+      RuntimeDriver.execute_until_stop() after a simulated process
+      restart, unmodified from every other recovery test in this
+      suite. Zero regressions.
+    deliverable: "DIRECTOR_REVIEW_006.md"
