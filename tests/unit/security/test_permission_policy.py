@@ -80,24 +80,24 @@ def test_export_secret_denied(policy: DefaultPermissionPolicy) -> None:
 
 # --- "ask" categories: denied pending approval (no approval flow yet) ---
 
-def test_install_package_denied_pending_approval(policy: DefaultPermissionPolicy) -> None:
+def test_install_package_ask(policy: DefaultPermissionPolicy) -> None:
     verdict = policy.evaluate(make_call("run_command", {"command": "pip install requests"}))
-    assert verdict.decision == PermissionDecision.DENY_PENDING_APPROVAL
+    assert verdict.decision == PermissionDecision.ASK
 
 
-def test_push_branch_denied_pending_approval(policy: DefaultPermissionPolicy) -> None:
+def test_push_branch_ask(policy: DefaultPermissionPolicy) -> None:
     verdict = policy.evaluate(make_call("run_command", {"command": "git push origin main"}))
-    assert verdict.decision == PermissionDecision.DENY_PENDING_APPROVAL
+    assert verdict.decision == PermissionDecision.ASK
 
 
-def test_network_access_denied_pending_approval(policy: DefaultPermissionPolicy) -> None:
+def test_network_access_ask(policy: DefaultPermissionPolicy) -> None:
     verdict = policy.evaluate(
         make_call("run_command", {"command": "curl https://example.com"})
     )
-    assert verdict.decision == PermissionDecision.DENY_PENDING_APPROVAL
+    assert verdict.decision == PermissionDecision.ASK
 
 
-def test_deny_pending_approval_is_not_allowed(policy: DefaultPermissionPolicy) -> None:
+def test_ASK_is_not_allowed(policy: DefaultPermissionPolicy) -> None:
     verdict = policy.evaluate(make_call("run_command", {"command": "curl https://example.com"}))
     assert verdict.allowed is False
 
@@ -105,3 +105,4 @@ def test_deny_pending_approval_is_not_allowed(policy: DefaultPermissionPolicy) -
 def test_malformed_command_argument_does_not_crash(policy: DefaultPermissionPolicy) -> None:
     verdict = policy.evaluate(make_call("run_command", {"command": 12345}))
     assert verdict.decision == PermissionDecision.ALLOW
+

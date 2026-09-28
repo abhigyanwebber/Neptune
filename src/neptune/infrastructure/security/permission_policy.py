@@ -1,31 +1,27 @@
-"""Minimum tool-boundary permission enforcement (B-012).
+"""Minimum tool-boundary permission enforcement (B-012, extended by
+B-013 for the ASK/approval tier).
 
 Implements the smallest enforceable slice of the frozen design in
 07_SECURITY/02_PERMISSION_MODEL.md: a Policy decision ("what the
 system permits an actor to request") evaluated per ToolCall, before
 ToolExecutorService dispatches to the tool's own execute(). This is
 NOT Sandbox (07_SECURITY/01_THREAT_MODEL.md's SANDBOX_CONTRACT stays
-frozen/unimplemented -- no process/container isolation here) and it
-is NOT Approval (no human-in-the-loop mechanism exists in this
-codebase yet).
+frozen/unimplemented -- no process/container isolation here).
 
-02_PERMISSION_MODEL.md's example policy table has three tiers:
-allow, ask, deny. Only two are enforceable without an approval
-mechanism:
+02_PERMISSION_MODEL.md's example policy table has three tiers --
+allow, ask, deny -- and this module now represents all three:
   - allow: unconditionally allowed (filesystem read/edit, running
     commands in general -- matches "read repository" / "edit
     workspace" / "run tests" in the table).
-  - deny: unconditionally blocked (matches "delete remote branch",
-    "production migration", "export secret").
-"ask" rows (install package, network access, push branch) have no
-home yet -- there is no approval workflow to route them through. Per
-02_PERMISSION_MODEL.md's precedence (EXPLICIT APPROVAL sits above
-ALLOW RULE, not below it), an action that requires approval must not
-silently fall through to plain allow just because approval isn't
-implemented. This policy therefore denies "ask" categories for now,
-labelled distinctly from a hard "deny" row so the gap is visible
-rather than hidden. See the final B-012 report for this as a named
-limitation, not a silent design choice.
+  - deny: unconditionally blocked, never reaches an approval step
+    (matches "delete remote branch", "production migration", "export
+    secret").
+  - ask: requires an explicit approval decision before it may
+    proceed (matches "install package", "network access", "push
+    branch"). B-012 denied these outright because no approval
+    mechanism existed; B-013 (see approval.py) adds that mechanism
+    and routes ASK through it instead of treating it as a synonym
+    for DENY.
 """
 from __future__ import annotations
 
@@ -40,7 +36,7 @@ from neptune.core.contracts.tool_execution import ToolCall
 class PermissionDecision(str, Enum):
     ALLOW = "allow"
     DENY = "deny"
-    DENY_PENDING_APPROVAL = "deny_pending_approval"
+    ASK = "ask"
 
 
 @dataclass(frozen=True)
@@ -130,8 +126,8 @@ class DefaultPermissionPolicy:
         for pattern, label in _ASK_RULES:
             if pattern.search(command):
                 return PermissionVerdict(
-                    PermissionDecision.DENY_PENDING_APPROVAL,
-                    f"{label} (requires approval; no approval workflow implemented yet)",
+                    PermissionDecision.ASK,
+                    f"{label} (requires approval per 02_PERMISSION_MODEL.md)",
                 )
 
         return PermissionVerdict(PermissionDecision.ALLOW, "no matching restriction")
