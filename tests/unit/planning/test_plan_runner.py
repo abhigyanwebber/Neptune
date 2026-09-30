@@ -159,3 +159,66 @@ def test_invalid_goal_plan_is_not_persisted_and_nothing_executes():
     # Only the one planning call was made -- no execution-driver call
     # happened (there's nothing after it in the script to consume).
     assert len(gateway.requests_received) == 1
+
+
+def test_original_goal_reaches_every_planned_step():
+    """T2 (Review 007): the user's original goal text must be in the
+    context of every step's model request, not just the step title.
+    Asserted on the actual requests the gateway received through the
+    real PlanRunner -> RuntimeDriver -> AgentRuntime path."""
+    goal_text = "Build a birdhouse and paint it blue"
+    gateway = FakeModelGateway(
+        scripted_responses=[
+            _plan_content(
+                [
+                    {"step_id": "build", "title": "Build the frame"},
+                    {"step_id": "paint", "title": "Paint it", "description": "Use blue paint", "dependencies": ["build"]},
+                ]
+            ),
+            {"content": "built", "tool_calls": []},
+            {"content": "painted", "tool_calls": []},
+        ]
+    )
+    runner, executor, _repo = _build(gateway)
+
+    result = runner.run_goal(Goal(goal_id="g-goal-ctx", description=goal_text))
+    assert executor.all_succeeded(result.plan) is True
+
+    # requests_received[0] is the planning call; [1] and [2] are the two steps.
+    step_requests = gateway.requests_received[1:]
+    assert len(step_requests) == 2
+    for request in step_requests:
+        joined = " ".join(request["requirements"])
+        assert goal_text in joined
+    # The step-specific task is still present and distinct.
+    assert "Build the frame" in " ".join(step_requests[0]["requirements"])
+    assert "Paint it" in " ".join(step_requests[1]["requirements"])
+    assert "Use blue paint" in " ".join(step_requests[1]["requirements"])
+    # The other step's title is NOT leaked (this is background goal only,
+    # not shared step history).
+    assert "Paint it" not in " ".join(step_requests[0]["requirements"])
+
+
+def test_provider_error_response_fails_the_step_instead_of_completing_it():
+    """A gateway error (normalized `error` key, no tool calls) must not
+    be recorded as a successful step. RuntimeDriver alone would call it
+    COMPLETED; PlanRunner must not."""
+    gateway = FakeModelGateway(
+        scripted_responses=[
+            _plan_content(
+                [
+                    {"step_id": "a", "title": "A"},
+                    {"step_id": "b", "title": "B", "dependencies": ["a"]},
+                ]
+            ),
+            {"content": None, "tool_calls": [], "error": {"error_type": "rate_limited", "message": "429"}},
+        ]
+    )
+    runner, executor, _repo = _build(gateway)
+
+    result = runner.run_goal(Goal(goal_id="g-provider-err", description="Do A then B"))
+
+    assert [r.step_id for r in result.step_results] == ["a"]
+    assert result.plan.get_step("a").status == StepStatus.FAILED
+    assert result.plan.get_step("b").status == StepStatus.SKIPPED
+    assert executor.all_succeeded(result.plan) is False

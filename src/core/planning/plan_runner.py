@@ -108,11 +108,11 @@ class PlanRunner:
                 # tells the caller which; PlanRunner does not
                 # second-guess that state machine.
                 break
-            step_results.append(self._run_step(plan, step))
+            step_results.append(self._run_step(plan, step, goal))
 
         return PlanRunResult(plan=plan, step_results=step_results)
 
-    def _run_step(self, plan: Plan, step: PlanStep) -> StepExecutionResult:
+    def _run_step(self, plan: Plan, step: PlanStep, goal: Goal) -> StepExecutionResult:
         # Existing PlanExecutor transition -- persists RUNNING, raises
         # IllegalPlanTransition if this step wasn't actually startable
         # (unmet dependency, already terminal). Not caught: a step that
@@ -123,14 +123,35 @@ class PlanRunner:
         task_id = f"{plan.plan_id}-{step.step_id}"
         driver = self._driver_factory(task_id)
 
-        requirements = [step.title]
+        # T2 (Review 007): every step receives the original user goal.
+        # Only `requirements` reaches the model prompt (constraints are
+        # used solely for the capability override; see
+        # ModelGatewayAdapter._translate_request), and requirements are
+        # already persisted on the Task, so this reuses the existing
+        # context path -- no second context mechanism. The goal is
+        # labelled as background so a step doesn't try to do the whole
+        # goal itself. Not cross-step conversation memory: prior steps'
+        # turns/observations are still not carried (post-MVP).
+        requirements = [
+            f"Overall goal (background only): {goal.description}",
+            f"Your task now, this step only: {step.title}",
+        ]
         if step.description:
             requirements.append(step.description)
         constraints = {"capability": step.capability_id} if step.capability_id else None
 
         result = driver.execute_task(task_id, requirements=requirements, constraints=constraints)
 
-        if result.outcome == DriverOutcome.COMPLETED:
+        # A provider failure is not a success (ADR-045: the gateway never
+        # raises; it returns a normalized `error` key with no tool calls,
+        # which RuntimeDriver reads as an ordinary "no more tool calls"
+        # completion). Without this check a rate limit or outage would
+        # mark every step COMPLETED having done nothing. Discovered while
+        # building the CLI; RuntimeDriver itself is deliberately unchanged.
+        final_response = (result.turns_run[-1].model_response or {}) if result.turns_run else {}
+        provider_failed = bool(final_response.get("error"))
+
+        if result.outcome == DriverOutcome.COMPLETED and not provider_failed:
             self._executor.complete_step(plan, step.step_id)
         else:
             # STOPPED_TOOL_FAILURE (includes a permission DENIED
