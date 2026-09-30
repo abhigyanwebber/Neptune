@@ -2,7 +2,15 @@ workers:
   - worker_id: A
     account_role: core-control-plane
     status: active
-    current_task: NEPTUNE-DIRECTOR-REVIEW-004
+    current_task: null
+    notes: >
+      current_task previously read NEPTUNE-DIRECTOR-REVIEW-004, which
+      assignments.yaml records as complete, so the pointer was stale and
+      was cleared by the MVP bookkeeping reconciliation. The ledger
+      cannot show what A is working on now; status is left as it was and
+      the director should set both. A's most recent completed entries in
+      assignments.yaml are NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION
+      and NEPTUNE-DIRECTOR-REVIEW-007.
   - worker_id: B
     account_role: infrastructure-integration
     status: idle
@@ -20,6 +28,8 @@ workers:
       - B-009-full-live-agent-loop-integration-validation
       - B-010-minimum-real-tool-surface-filesystem-shell
       - B-011-real-coding-agent-tool-use-validation
+      - NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+      - B-013-permission-ask-approval-mechanism
     notes: >
       worker/claude-a was merged locally into worker/claude-b seven
       times: fast-forward to b4fb5a1 for B-006, fast-forward to
@@ -35,3 +45,9 @@ workers:
       which A-008 had also modified (both lanes' own files, no
       conflict since B-011 built on top of A's merged A-008 changes,
       not in parallel with them).
+      Later, at the start of the MVP bookkeeping reconciliation,
+      worker/claude-b (then at 665dfd5, B-013) was fast-forwarded to
+      7c62871 (DIRECTOR-REVIEW-007, worker/claude-a, which contains
+      origin/main at 51a9757). The B-012 and B-013 work had already been
+      integrated into main before that. Commits: B-012 is 5c7ebcb and
+      B-013 is 665dfd5.

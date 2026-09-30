@@ -874,11 +874,326 @@ assignments:
     tests: "worker/claude-a: 287 passed, 6 skipped. main (with B-011): 296 passed, 7 skipped -- matches B-011's own reported no-credential baseline exactly. All skips live-credential (no GROQ_API_KEY available to the auditor); no live-provider results claimed."
 
 
+  - task_id: NEPTUNE-A-009-RUNTIMEDRIVER-PER-TURN-CONTEXT-PROVIDER
+    worker_id: A
+    title: "RuntimeDriver Per-Turn Context Provider"
+    status: complete
+    authorized_by: director
+    commit: 4216b81
+    depends_on: [NEPTUNE-DIRECTOR-REVIEW-004, B-011-real-coding-agent-tool-use-validation]
+    scope: >
+      Implemented the design DIRECTOR_REVIEW_004.md approved (its Option C,
+      minimal): RuntimeDriver accepts an optional context_provider callable
+      and _run_loop invokes it once per turn, never cached, passing the
+      result to AgentRuntime.run_turn(..., extra_context=...). With no
+      provider the call is byte-for-byte the pre-A-009 behavior. Closes the
+      gap B-011 documented (B-DEC-031): dynamic tool offering can now reach
+      a model request through RuntimeDriver.execute_task() and
+      execute_until_stop(). RuntimeDriver still imports no resolver,
+      registry or provider type -- it sees only a Callable[[], dict].
+      Provider exceptions propagate unchanged. Per the commit message,
+      __init__ already accepted context_provider (partial work from an
+      earlier chat session, preserved as-is); this task completed the
+      _run_loop invocation and the tests.
+    contracts_implemented: []
+    contracts_modified: false
+    runtime_modified: false
+    driver_modified: true
+    adr: []
+    new_adr: false
+    adr_proposed_pending_director: >
+      "RuntimeDriver per-turn context supplementation via an injected
+      context provider" -- title only, no number assigned, not approved.
+      Source: DIRECTOR_REVIEW_004.md (which leaned toward a numbered ADR
+      and left the decision to the director) and DIRECTOR_REVIEW_005.md
+      section 15 (recommends formalizing). Status: PENDING director
+      decision. The implementation went ahead on the design approved in
+      Review 004; no ADR file exists.
+    tests: >
+      As reported in the commit message: 303 passed, 7 skipped, 0 failed with
+      Postgres up via docker compose; the 7 skips are live-credential
+      guards (no GROQ_API_KEY). New coverage: driver unit tests
+      (no-provider parity, once-per-turn invocation, context reaching the
+      model request, per-turn freshness, provider exceptions not swallowed,
+      fresh context after a resume) and one integration test that reruns
+      B-011's real dynamic-offering composition through
+      RuntimeDriver.execute_task() itself.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation (post
+      DIRECTOR_REVIEW_007) from the commit history and review documents;
+      the ledger had no entry for this task (DIRECTOR_REVIEW_006 section 14,
+      DIRECTOR_REVIEW_007 section 13).
+
+  - task_id: NEPTUNE-A-010-GOAL-TO-PLAN-GENERATION
+    worker_id: A
+    title: "Goal-to-Plan Generation"
+    status: complete
+    authorized_by: director
+    commit: 9735e6f
+    depends_on: [NEPTUNE-A-007-PLANNING-LAYER]
+    scope: >
+      Added the first real consumer of the Planning layer: Goal ->
+      GoalPlanner (src/core/planning/planner.py) -> validated Plan ->
+      PlanRepository -> the existing PlanExecutor, plus PlanGenerationError
+      (src/core/planning/errors.py, a PlanValidationError subclass). Reuses
+      the existing Plan/PlanStep/StepStatus model verbatim and calls the
+      existing ModelGatewayPort directly (not through AgentRuntime or
+      RuntimeDriver). Structured output rides the model response's existing
+      opaque content field; RoutingConstraints.require_structured_output was
+      confirmed by inspection to be a declared but unimplemented contract
+      field, so it is not used. Validation: non-empty goal checked before any
+      gateway call; JSON parse, per-step shape and duplicate step_id checks
+      in the planner; dependency-cycle and unknown-reference checks
+      delegated to PlanExecutor.start_plan()'s existing validation. Nothing
+      is persisted on any rejection. plan_id is deterministic
+      (<goal_id>-plan-<n>). core/planning imports only core.* and stdlib;
+      the existing provider-independence contract test covers the new file
+      unchanged.
+    contracts_implemented: []
+    contracts_modified: false
+    runtime_modified: false
+    driver_modified: false
+    planner_modified: true
+    adr: []
+    new_adr: false
+    adr_proposed_pending_director: >
+      "Goal-to-Plan structured output via the existing ModelGatewayPort
+      content field" -- title only, no number assigned, not approved.
+      Source: the A-010 commit message and DIRECTOR_REVIEW_005.md section
+      15 ("worth formalizing, lower urgency"). Status: PENDING director
+      decision. No ADR file exists.
+    tests: >
+      As reported in the commit message: 317 passed, 8 skipped, 0 failed with
+      Postgres up via docker compose (7 pre-existing live-credential skips
+      plus this task's new live test). 14 new unit tests
+      (tests/unit/planning/test_planner.py, SQLite + FakeModelGateway) and 1
+      live-gated integration test
+      (tests/integration/planning/test_goal_to_plan_live.py, needs
+      GROQ_API_KEY and Postgres). LIVE PROOF NOT OBTAINED: no GROQ_API_KEY
+      was available, the live test has skipped in every recorded run, and no
+      real-model goal-to-plan result exists (DIRECTOR_REVIEW_005 section 16,
+      DIRECTOR_REVIEW_007 section 8). Plan quality from a real model is
+      unknown.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation from the commit
+      history and review documents. The task left shared state untouched by
+      its own shared-state rule (stated in its commit message), which is why
+      the ledger had no entry.
+
+  - task_id: NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+    worker_id: B
+    title: "Tool Permission Enforcement"
+    status: complete
+    authorized_by: director
+    commit: 5c7ebcb
+    depends_on: [B-010-minimum-real-tool-surface-filesystem-shell, NEPTUNE-DIRECTOR-REVIEW-003]
+    scope: >
+      DIRECTOR_REVIEW_003.md found permission enforcement and sandboxing
+      absent. Implemented the smallest enforceable slice of
+      07_SECURITY/02_PERMISSION_MODEL.md at the tool boundary. New
+      src/neptune/infrastructure/security/permission_policy.py
+      (PermissionDecision, PermissionVerdict, PermissionPolicy Protocol,
+      DefaultPermissionPolicy). ToolExecutorService gained an optional
+      permission_policy constructor argument defaulting to
+      DefaultPermissionPolicy() (secure by default; no off switch). The
+      policy is evaluated inside ToolExecutorService.execute() after
+      registry lookup (an unknown tool still reports NOT_FOUND) and before
+      tool.execute(), so a denied call never reaches a tool. ToolOutcome
+      gained an additive DENIED member, distinct from ERROR;
+      ToolPortAdapter already maps any non-SUCCESS outcome to
+      status="error", so nothing downstream changed. Filesystem tools:
+      unchanged -- WorkspaceBoundary (B-010) already rejects path escape
+      and satisfies the model's edit-workspace row. Shell (run_command):
+      three deny-classified categories from the model's example table
+      (delete remote branch, production migration, export secret) are
+      blocked by a regex heuristic on the command string; three
+      ask-classified categories (install package, push branch, network
+      access) were denied outright because no approval mechanism existed
+      yet (superseded by B-013). The heuristic is best-effort and evadable.
+      No sandbox, container, process or network isolation was built or
+      claimed.
+    contracts_implemented: []
+    contracts_modified: >
+      TOOL_CONTRACT code only, additive: ToolOutcome.DENIED added in
+      src/neptune/core/contracts/tool_execution.py. No contract document
+      under 03_CONTRACTS was changed.
+    runtime_modified: false
+    driver_modified: false
+    registry_modified: false
+    known_inconsistency: >
+      The docstrings in src/neptune/core/contracts/tool_execution.py still
+      say authorization is not the executor's job (a listed
+      non-responsibility) and that ToolExecutor executes unconditionally
+      once called, with the Runtime expected to have decided authorization
+      beforehand. B-012 instead placed policy evaluation inside
+      ToolExecutorService, the reference ToolExecutor, so those comments no
+      longer describe the implemented behavior. B-012's own report and
+      Reviews 005 and 007 did not flag this. The contract module is outside
+      the bookkeeping reconciliation's remit and was not edited; recorded
+      for the director (see B-DEC-033 and the pending ASK-tier ADR).
+    adr: []
+    new_adr: false
+    adr_proposed_pending_director: >
+      B-012 itself proposed no ADR. DIRECTOR_REVIEW_005.md section 15
+      recommends one, calling it the most worth formalizing of the three it
+      lists: the permission policy under which ask-classified actions are
+      denied pending an approval mechanism. That subject was extended by
+      B-013, so the pending proposal is carried once, under B-013 (see
+      B-DEC-034). No number assigned; not approved.
+    tests: >
+      16 new tests by pytest collection: 11 unit
+      (tests/unit/security/test_permission_policy.py) and 5 integration
+      (tests/integration/tools/test_permission_enforcement.py), including a
+      marker-file test proving a denied command never reaches the shell. As
+      reported at completion: full suite 289 passed, 37 skipped, 0 failed
+      (326 collected). Two corrections to what was reported then: (1) the
+      completion report and DIRECTOR_REVIEW_005 section 16 quote 13 new
+      tests (8 unit + 5 integration); that was an undercount taken from
+      truncated pytest output, and the totals confirm 16 (310 collected
+      before, 326 after). (2) The 37 skips were not itemized at the time.
+      DIRECTOR_REVIEW_005 later measured 8 skips (all live-credential, with
+      Postgres up) on a tree containing this task, and DIRECTOR_REVIEW_007
+      section 2 found a stopped Postgres container inflates skips, so the
+      37 is most likely database-unavailability skips; that attribution is
+      inferred, not verified. No live-provider result is claimed.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation. The task left shared
+      state untouched by its own instruction (DEVELOPMENT_STATE entries and
+      the ADR index were reserved for the director), which is why the ledger
+      had no entry.
+
+  - task_id: NEPTUNE-DIRECTOR-REVIEW-005
+    worker_id: A
+    title: "Integrated Control Loop / Product Readiness Audit"
+    status: complete
+    authorized_by: director
+    mode: read-only-audit
+    deliverable: "DIRECTOR_REVIEW_005.md"
+    commit: 765a09b
+    verdict: "PROCEED WITH CORRECTIONS"
+    code_modified: false
+    contracts_modified: false
+    architecture_modified: false
+    target: "worker/claude-a @ df2b65e (A-010 merged with B-012)"
+    central_finding: >
+      Every listed capability is real, but no path exists from a generated
+      Plan to actual execution, and no product entry point exists. GoalPlanner
+      output never reaches AgentRuntime/RuntimeDriver. Recommended one
+      single-owner milestone to wire Plan execution through
+      AgentRuntime/RuntimeDriver and give the result one real entry point
+      (this became A-011 for the first half).
+    adr_proposed_awaiting_director_number: >
+      Section 15 of the review recommends formalizing three decisions:
+      the RuntimeDriver per-turn context provider (A-009), Goal-to-Plan
+      structured output via the content field (A-010), and the permission
+      policy under which ask-classified actions are denied pending an
+      approval mechanism (B-012, later extended by B-013), the last named
+      the most worth formalizing. The review assigned no numbers. Status:
+      PENDING director decision on all three.
+    tests: >
+      Measured at df2b65e with Postgres up and no GROQ_API_KEY: 341
+      collected, 333 passed, 0 failed, 8 skipped (all live-credential
+      guards). The review flagged that the authorization brief's stated
+      baseline (383 passed, 38 skipped) did not match and said it had no
+      confirmed explanation. That discrepancy is unresolved. Its section
+      16 also repeats B-012's 13-new-test undercount (16 by collection).
+      No live-provider results are claimed.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation. worker_id follows
+      the branch the commit lives on (worker/claude-a); every commit in this
+      repository shares one git identity, so authorship cannot distinguish
+      the lanes.
+
+  - task_id: B-013-permission-ask-approval-mechanism
+    worker_id: B
+    title: "Permission ASK / Approval Mechanism"
+    status: complete
+    authorized_by: director
+    commit: 665dfd5
+    deliverable: "DIRECTOR_REVIEW_006B.md"
+    depends_on: [NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT]
+    parallel_with: [NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION]
+    scope: >
+      Made ASK a real third permission decision. PermissionDecision.
+      DENY_PENDING_APPROVAL (in effect a DENY synonym in B-012) was replaced
+      by ASK. New src/neptune/infrastructure/security/approval.py defines
+      ApprovalDecision (APPROVED/REJECTED), ApprovalError, the
+      ApprovalProvider Protocol, AutoRejectApprovalProvider (the production
+      default, always rejects), and two test doubles
+      (FailingApprovalProvider, StaticApprovalProvider).
+      ToolExecutorService gained an optional approval_provider argument
+      defaulting to AutoRejectApprovalProvider. For an ASK verdict the
+      executor consults the provider after policy evaluation and before
+      dispatch; APPROVED falls through to the same tool.execute() path as an
+      ordinary ALLOW, REJECTED returns ToolOutcome.DENIED, and an
+      ApprovalError also returns DENIED. No new ToolOutcome member; no
+      change to ToolCall, ToolOutcome, the ToolExecutor Protocol, or
+      ToolPortAdapter. No UI, server, authentication or multi-user
+      approval was built. No planning, runtime, gateway or registry file
+      was touched. The shell regex heuristic from B-012 is unchanged and
+      still evadable; approval does not make it a complete guarantee.
+    contracts_implemented: []
+    contracts_modified: false
+    runtime_modified: false
+    driver_modified: false
+    known_limitations:
+      - >
+        No real approval channel exists. AutoRejectApprovalProvider is the
+        only production-wired provider, so ASK still behaves as deny in
+        practice. The change is architectural: ASK is explicitly
+        represented and routed through a replaceable seam.
+      - >
+        Fail-closed handling is narrower than DIRECTOR_REVIEW_006B.md
+        implies. The executor catches only ApprovalError. Verified on
+        2026-09-30 with a throwaway probe outside the repository: a
+        provider that raises any other exception (a RuntimeError) makes
+        ToolExecutorService.execute() raise instead of returning a
+        structured DENIED result. The tool did not run (the side-effect
+        marker file was not created), so the safety property holds, but the
+        caller receives an exception. No source was changed in this
+        reconciliation; recorded for the director as a follow-up.
+      - >
+        The same tool_execution.py docstring inconsistency recorded on
+        B-012 applies: policy and approval now both run inside the executor
+        while the contract comments still describe authorization as outside
+        it.
+    adr: []
+    new_adr: false
+    adr_proposed_pending_director: >
+      "Approval boundary for the permission ASK tier" -- title only, no
+      number assigned, not approved. DIRECTOR_REVIEW_006B.md section 16
+      offers this as the natural candidate and leaves the decision to the
+      director; DIRECTOR_REVIEW_005.md section 15 recommends formalizing
+      the underlying ask-denied-pending-approval policy. Covers B-012 and
+      B-013 together. It would also be the natural place to resolve the
+      tool_execution.py docstring inconsistency.
+    tests: >
+      10 new tests by pytest collection: 4 unit
+      (tests/unit/security/test_approval.py) and 6 integration
+      (tests/integration/security/test_ask_approval.py), with marker-file
+      proofs that an approved ASK reaches the real tool and that a
+      rejected ASK, an ApprovalError, and the no-provider default do not.
+      Four existing B-012 unit tests were renamed for the ASK member
+      without behavior change. As reported at completion: 26 focused tests
+      passed and the full suite was 329 passed, 7 skipped, 0 failed. The
+      completion report and DIRECTOR_REVIEW_006B.md said 12 new tests and
+      24 focused; both were miscounts from truncated pytest output, and
+      the collected counts above are correct. Skips were 7 here against
+      37 at B-012; the difference is environmental (database availability,
+      per DIRECTOR_REVIEW_007 section 2), not a code effect. No
+      live-provider result is claimed.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation. The task left
+      shared state untouched by its own instruction, so the ledger had no
+      entry. Its own findings on DIRECTOR_REVIEW_006B.md are corrected by
+      the correction note appended to that file.
+
   - task_id: NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION
     worker_id: A
     title: "Goal-to-Execution Integration"
     status: complete
     authorized_by: director
+    commit: 5133478
     depends_on: [A-009, A-010, B-012, NEPTUNE-DIRECTOR-REVIEW-005]
     scope: >
       Closed the seam DIRECTOR_REVIEW_005.md identified: GoalPlanner's
@@ -931,6 +1246,14 @@ assignments:
     second_execution_architecture_introduced: false
     adr: []
     new_adr: false # a sequencing/composition task over already-decided contracts (RuntimeDriver's context_provider, PlanExecutor's step lifecycle, B-012's permission policy) -- no new architectural decision made
+    adr_proposed_pending_director: >
+      "Plan steps execute as independent RuntimeDriver tasks via an
+      injected driver factory" -- title only, no number assigned, not
+      approved. Source: DIRECTOR_REVIEW_006.md section 13, which leaves the
+      decision to the director and leans toward recording it because the
+      design has a notable consequence (steps do not share task or session
+      context). Status: PENDING director decision. Added by the MVP
+      bookkeeping reconciliation; the task itself created no ADR.
     tests: >
       349 collected, 0 failed. 340 passed, 9 skipped without
       GROQ_API_KEY (8 pre-existing live-credential skips, unchanged,
@@ -952,3 +1275,60 @@ assignments:
       restart, unmodified from every other recovery test in this
       suite. Zero regressions.
     deliverable: "DIRECTOR_REVIEW_006.md"
+
+
+
+  - task_id: NEPTUNE-DIRECTOR-REVIEW-007
+    worker_id: A
+    title: "Integrated Product-Readiness Review (post A-011 / B-013)"
+    status: complete
+    authorized_by: director
+    mode: read-only-audit
+    deliverable: "DIRECTOR_REVIEW_007.md"
+    commit: 7c62871
+    code_modified: false
+    contracts_modified: false
+    architecture_modified: false
+    target: "origin/main @ 51a9757 (includes A-011 and B-013)"
+    numbering_note: >
+      DIRECTOR_REVIEW_006.md is A-011's report and DIRECTOR_REVIEW_006B.md is
+      B-013's, so they are recorded as deliverables of those tasks rather
+      than as separate review tasks. This review is 007 to avoid a third
+      "006".
+    verdict: >
+      A user cannot submit a goal to Neptune today. There is no entry point
+      of any kind. Every link of the goal-to-completion chain exists as real,
+      tested code, but the chain only runs inside test files that hand-build
+      the dependency graph. The review reports the core engine as strong, the
+      MVP product as 0 of 14 chain links usable without new code, and
+      production hardening as mostly untouched.
+    remaining_mvp_work: >
+      Required: T1 composition root plus CLI entry point, T2 goal text (and
+      ideally prior step outcomes) passed into each step's context, T3
+      interactive approval channel implementing ApprovalProvider, T4 live
+      validation with a real key including one ASK, and T5 this
+      documentation and ledger reconciliation. Recommended: T6 denial or
+      rejection becomes a model-visible observation instead of ending the
+      step, and T7 initial workspace snapshot in first-turn context.
+      Post-MVP: T8 plan-level resume, T9 preflight or skip visibility when
+      Postgres is down. The review recommends the critical path T2, then T1
+      with T3, then T4 stay with one lane.
+    tests: >
+      Measured by the review at 51a9757, no GROQ_API_KEY: 359 collected. As
+      found (Postgres stopped): 317 passed, 0 failed, 42 skipped. With
+      docker compose up -d: 350 passed, 0 failed, 9 skipped. The review
+      attributes 9 skips to the missing credential and 33 to Postgres being
+      unreachable, and warns that without Postgres the suite reports 0
+      failures while skipping every real-tool integration proof. Consistent
+      with A-011's own 349 collected plus B-013's 10 new tests. No
+      live-provider result is claimed anywhere.
+    adr_proposed_awaiting_director_number: >
+      None proposed by this review. It states pending ADR decisions from
+      Reviews 004 to 006 are recorded in those reviews and did not re-inspect
+      the ADR index. Each pending proposal is recorded on its own task entry
+      (A-009, A-010, B-013, A-011) and in decision B-DEC-034; all four remain
+      PENDING, unnumbered and unapproved.
+    note: >
+      Backfilled by the MVP bookkeeping reconciliation. worker_id follows the
+      branch the commit lives on (worker/claude-a); every commit in this
+      repository shares one git identity. Its T5 item is this reconciliation.

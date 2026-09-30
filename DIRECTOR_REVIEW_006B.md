@@ -160,3 +160,42 @@ architectural decision -- but if the director wants a formal record of
 the ASK/DENY-vs-approval-failure distinction, a short ADR title such
 as "Approval boundary for the permission ASK tier" would be the
 natural candidate, left for director numbering.
+
+
+---
+
+## Correction note (added during the MVP bookkeeping reconciliation)
+
+The text above is preserved unedited. Two statements in it need correcting,
+one needs a qualification, and one related miscount in B-012's report is noted. Each was checked against the repository and,
+where stated, by running code.
+
+1. **New-test count (section 12).** The section says 12 new tests (5 unit,
+   7 integration). Pytest collection shows **10 new tests: 4 unit
+   (`tests/unit/security/test_approval.py`) and 6 integration
+   (`tests/integration/security/test_ask_approval.py`)**. The 12 came from
+   miscounting truncated pytest output. This agrees with the later reviews:
+   A-011 reported 349 collected before B-013 merged, and DIRECTOR_REVIEW_007
+   reports 359 after.
+2. **Focused run (section 12).** The section says 24 passed. The same
+   command covers 15 + 6 + 5 = **26 tests**, all passing.
+3. **Test count for B-012.** The same miscount affected B-012's report
+   (13 new tests reported; **16** by collection: 11 unit, 5 integration).
+   DIRECTOR_REVIEW_005 section 16 repeats the 13.
+4. **Approval failure (section 10).** The section says approval failure fails
+   closed. That is true, but narrower than it reads. `ToolExecutorService`
+   converts only `ApprovalError` into a structured `DENIED` result. A
+   provider that raises any other exception makes `execute()` raise. Checked
+   on 2026-09-30 with a throwaway script outside the repository: the
+   exception propagated, and the side-effect marker file was not created, so
+   **the tool did not run**. The safety property holds; the "returns a
+   structured denial instead of crashing" property does not, for that class
+   of provider bug. No source was changed by the reconciliation. This is
+   recorded as a follow-up for the director in `DEVELOPMENT_STATE`
+   (decision B-DEC-034).
+
+Also noted in `DEVELOPMENT_STATE` (decision B-DEC-033): the docstrings in
+`src/neptune/core/contracts/tool_execution.py` still describe authorization
+as outside the executor's job, while B-012 and B-013 place policy and
+approval inside `ToolExecutorService`. Section 13 above ("Architectural
+impact") did not mention this.

@@ -1089,3 +1089,60 @@ decisions:
       path. This is model behavior, not an architectural defect;
       reported precisely rather than treated as flakiness to hide.
     reversible: true
+
+
+  - id: B-DEC-033
+    task_id: NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+    decision: >
+      Placed permission evaluation inside ToolExecutorService.execute(),
+      after registry lookup and before tool.execute(), with
+      DefaultPermissionPolicy() as the constructor default (secure by
+      default, no off switch). Reason recorded in the task: no production
+      composition root instantiates ToolExecutorService (only tests do), so a
+      separate wrapping executor would have needed composition-root changes
+      that did not exist to make. Added ToolOutcome.DENIED as an additive
+      enum member so a call that was never allowed to run is distinguishable
+      from one that ran and failed; ToolPortAdapter already maps every
+      non-SUCCESS outcome to status="error", so nothing downstream changed.
+      The 02_PERMISSION_MODEL.md "ask" rows (install package, push branch,
+      network access) were denied outright because no approval mechanism
+      existed, rather than silently allowed.
+      Recorded inconsistency, not resolved here: the docstrings in
+      src/neptune/core/contracts/tool_execution.py still list authorization
+      as a non-responsibility of the executor and say ToolExecutor executes
+      unconditionally once called, leaving the authorization decision to the
+      Runtime. Placing policy inside the reference executor means those
+      comments no longer describe the implemented behavior. B-012's report
+      and Reviews 005 and 007 did not flag it. Escalated to the director; the
+      contract module was outside the bookkeeping reconciliation's remit.
+      Proposed ADR (title only, unnumbered, pending director): see
+      B-DEC-034.
+    reversible: true
+
+  - id: B-DEC-034
+    task_id: B-013-permission-ask-approval-mechanism
+    decision: >
+      Represented ASK as its own PermissionDecision (replacing
+      DENY_PENDING_APPROVAL, which behaved as a DENY synonym) and routed it
+      through a replaceable ApprovalProvider Protocol consulted by
+      ToolExecutorService after policy evaluation and before dispatch. An
+      approved ASK falls through to the same tool.execute() path as ALLOW, so
+      there is no second execution route. The production default is
+      AutoRejectApprovalProvider, which always rejects, so deny-by-default
+      is preserved until a real approval channel is wired in. Reused
+      ToolOutcome.DENIED for rejected ASK and for an unobtainable approval
+      (distinguished by error_message) rather than adding an outcome.
+      Recorded limitation, not resolved here: the executor catches only
+      ApprovalError. Verified 2026-09-30 by a throwaway probe outside the
+      repository that a provider raising any other exception makes
+      ToolExecutorService.execute() raise instead of returning a structured
+      DENIED result; the tool did not run (side-effect marker absent), so the
+      safety property holds but the caller receives an exception.
+      DIRECTOR_REVIEW_006B.md describes approval failure as failing closed
+      without this qualification. No source was changed by the reconciliation
+      task; a follow-up is for the director to decide.
+      Proposed ADR (title only, no number, not approved, pending director):
+      "Approval boundary for the permission ASK tier", covering B-012 and
+      B-013 and a natural place to resolve the tool_execution.py docstring
+      inconsistency in B-DEC-033.
+    reversible: true

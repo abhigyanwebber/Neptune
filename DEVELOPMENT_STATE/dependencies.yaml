@@ -276,3 +276,60 @@ dependencies:
       new tool should register both together (as EchoTool already does
       implicitly via the constructor-fallback path) so the model is
       never offered a catalog-only tool with no execution backing.
+
+
+
+  - task_id: NEPTUNE-A-009-RUNTIMEDRIVER-PER-TURN-CONTEXT-PROVIDER
+    depends_on:
+      - NEPTUNE-DIRECTOR-REVIEW-004
+      - B-011-real-coding-agent-tool-use-validation
+    note: >
+      Closes the seam B-011 documented (B-DEC-031): RuntimeDriver could not
+      pass per-turn extra_context to AgentRuntime.run_turn(), so dynamic tool
+      offering could not reach a model request through the normal driver
+      path. Backfilled by the MVP bookkeeping reconciliation.
+
+  - task_id: NEPTUNE-A-010-GOAL-TO-PLAN-GENERATION
+    depends_on:
+      - NEPTUNE-A-007-PLANNING-LAYER
+    note: >
+      Resolves the historical marker NEPTUNE-PLAN-GENERATION-NOT-YET-BUILT
+      above, which is left unedited because entries in this file are
+      additive. GoalPlanner reuses the existing Plan model, PlanExecutor and
+      ModelGatewayPort. Its live-model test has never run for lack of a
+      GROQ_API_KEY, so plan quality from a real model is unverified.
+      Backfilled by the MVP bookkeeping reconciliation.
+
+  - task_id: NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+    depends_on:
+      - B-010-minimum-real-tool-surface-filesystem-shell
+      - NEPTUNE-DIRECTOR-REVIEW-003
+    note: >
+      Policy evaluation runs inside ToolExecutorService.execute(), so it
+      depends on the B-004 execution boundary and on B-010's tools. See
+      decision B-DEC-033 for the tool_execution.py docstring inconsistency.
+      Backfilled by the MVP bookkeeping reconciliation.
+
+  - task_id: B-013-permission-ask-approval-mechanism
+    depends_on:
+      - NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+    note: >
+      Extends B-012's policy with an ApprovalProvider seam for ASK. No
+      production ApprovalProvider other than the auto-reject default exists,
+      so any caller that needs a working ASK path must supply one. See
+      decision B-DEC-034. Backfilled by the MVP bookkeeping reconciliation.
+
+  - task_id: NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION
+    depends_on:
+      - NEPTUNE-A-009-RUNTIMEDRIVER-PER-TURN-CONTEXT-PROVIDER
+      - NEPTUNE-A-010-GOAL-TO-PLAN-GENERATION
+      - NEPTUNE-B-012-TOOL-PERMISSION-ENFORCEMENT
+    note: >
+      Resolves the historical marker
+      NEPTUNE-RUNTIME-DRIVER-PLAN-INTEGRATION-NOT-YET-BUILT above (left
+      unedited; entries here are additive). RuntimeDriver and PlanExecutor
+      still do not reference each other: PlanRunner sequences them. The
+      integration is exercised only from tests; no production composition
+      root or entry point exists (DIRECTOR_REVIEW_007). B-013's ASK path has
+      no driver-path test because A-011 and B-013 were built in parallel.
+      Backfilled by the MVP bookkeeping reconciliation.
