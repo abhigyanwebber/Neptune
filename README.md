@@ -2,7 +2,7 @@
 
 **A reusable, project-agnostic agent infrastructure — a provider-agnostic, self-hostable, Claude-Code-like execution environment.**
 
-Specification version: 0.7.1 · Phase: implementation (post-architecture-freeze) · Status: engine subsystems built and tested; no user-facing entry point yet
+Specification version: 0.7.1 · Phase: implementation (post-architecture-freeze) · Status: MVP path implemented (goal -> plan -> execution through a CLI) and tested with a faked model; real-model validation not yet performed
 
 ## What is Neptune?
 
@@ -44,18 +44,18 @@ Next Turn / Completion
 Checkpoint / Recovery
 ```
 
-- **Planning** (`core/planning`) turns a goal into an ordered, validated plan: `GoalPlanner` asks the model for structured steps and `PlanExecutor` tracks step status. `PlanRunner` executes a plan by running each step as its own runtime task; steps do not share turns or observations.
+- **Planning** (`core/planning`) turns a goal into an ordered, validated plan: `GoalPlanner` asks the model for structured steps and `PlanExecutor` tracks step status. `PlanRunner` executes a plan by running each step as its own runtime task; steps do not share turns or observations. The original goal text is included in every step's context as background.
 - **Resolution** picks concrete capabilities, providers, and resources for a step from the registries (`core/resolution`).
 - **Runtime** (`core/runtime`) drives a session turn-by-turn: assemble context, request a model turn, execute any requested tool calls, record the observation, decide whether to continue or complete.
 - **Model Gateway** normalizes requests/responses across providers behind `MODEL_CONTRACT`/`PROVIDER_CONTRACT`/`ROUTER_CONTRACT`; the first live adapter is Groq.
 - **Tool offering** — `ToolOfferingResolver` turns the canonical tool registry into the tool definitions sent with each model request, and `RuntimeDriver` can supply per-turn context through an optional `context_provider`.
-- **Tool Execution** runs tool calls under a boundary that enforces timeouts and output-size limits (`TOOL_CONTRACT`). Before a tool runs, `ToolExecutorService` evaluates a permission policy: a call is allowed, denied, or, for `ask`-classified actions, sent to an `ApprovalProvider`. A denied or unapproved call never reaches the tool.
+- **Tool Execution** runs tool calls under a boundary that enforces timeouts and output-size limits (`TOOL_CONTRACT`). Before a tool runs, `ToolExecutorService` evaluates a permission policy: a call is allowed, denied, or, for `ask`-classified actions, sent to an `ApprovalProvider`. A denied or unapproved call never reaches the tool. A command that exits non-zero or times out is a failed execution, not a success.
 - **Observation** feeds tool results back to the model as deterministic, replayable messages (ADR-043).
 - **Checkpoint / Recovery** persists state to Postgres so a run can resume in a fresh process after a stop or crash.
 
 ## Current State
 
-Neptune's engine subsystems are built and tested. What is missing is the thing that runs them: nothing outside the test suite builds the dependency graph, so **there is no user-facing entry point yet** — a user cannot submit a goal today (`DIRECTOR_REVIEW_007.md`).
+Neptune can be run: `python -m neptune "<goal>" --workspace DIR` plans the goal, runs each step through the runtime with real filesystem and shell tools, enforces the permission policy, and asks you at the terminal before any `ask`-classified action (see **Running Neptune**). This path is tested end to end with a **faked model** against real Postgres, tools and permission policy. It has **not yet been validated against a real model** (see Not verified). Closure report: `DIRECTOR_REVIEW_009.md`.
 
 **Implemented and tested:**
 
@@ -68,32 +68,47 @@ Neptune's engine subsystems are built and tested. What is missing is the thing t
 - Tools: `ReadFileTool`, `WriteFileTool`, `ListDirectoryTool` and `RunCommandTool` (plus `EchoTool`), with file access confined to the workspace by `WorkspaceBoundary`. Real coding-agent tool use was validated against a live model.
 - Tool execution boundary: timeout and output-size enforcement; `ToolPortAdapter` bridges the Runtime's `ToolPort` contract to the real `ToolExecutor` (ADR-044).
 - Observation feedback loop: model → tool → observation → follow-up model request.
-- Permission enforcement: a default policy evaluated before every tool call. Filesystem access is bounded by `WorkspaceBoundary`; the shell tool blocks a few deny-classified command categories by pattern. `ASK` is an explicit third decision routed to a replaceable `ApprovalProvider`; the only production provider auto-rejects, so ASK currently behaves as deny.
+- Permission enforcement: a default policy evaluated before every tool call. Filesystem access is bounded by `WorkspaceBoundary`; the shell tool blocks a few deny-classified command categories by pattern (including printing secret-named variables such as `echo %GROQ_API_KEY%`). `ASK` is an explicit third decision routed to an `ApprovalProvider`: the CLI wires in `CliApprovalProvider`, which prompts y/N at the terminal and rejects on anything else; when no provider is supplied the executor auto-rejects, so ASK behaves as deny.
 - Cross-process tool-execution recovery, validated against live Postgres.
 
-**Not built yet (remaining MVP work, per `DIRECTOR_REVIEW_007.md`):**
+**Built for the MVP path (`DIRECTOR_REVIEW_007.md` tasks T1 to T3, closed in `DIRECTOR_REVIEW_009.md`):**
 
-- A composition root and CLI entry point that builds the registries, gateway, tools and `PlanRunner` from a goal and a workspace path.
-- Passing the goal text into each step's context (steps currently see only their own title and description).
-- An interactive approval channel implementing `ApprovalProvider`.
-- Live end-to-end validation with a real provider credential.
+- Composition root (`neptune.application.composition`) and CLI (`python -m neptune`) that build the registries, gateway, tools and `PlanRunner` from a goal and a workspace path.
+- The original goal text is passed into every step's context.
+- `CliApprovalProvider`: an interactive terminal approval channel implementing `ApprovalProvider`.
+- Failure propagation: a tool that reports a failed command (non-zero exit or timeout), a gateway error, a denial or a rejected approval all fail the step, and the CLI reports `not all steps completed` with exit code 1.
 
 **Not verified:**
 
-- The live Groq tests for `GoalPlanner` (A-010) and `PlanRunner` (A-011) have never run, because no `GROQ_API_KEY` was available where they were verified. Plan quality from a real model, and the goal → plan → execute path against a real provider, are unverified.
+- No real-model run of the current system has ever been performed. The live tests for `GoalPlanner` (A-010) and `PlanRunner` (A-011) have never run, and the CLI has not been run with a real `GROQ_API_KEY`: no key was available where this was verified. The real path is verified only up to the provider: with an invalid key the CLI seeds the registry, routes to Groq and receives a genuine `401`. Whether a free-tier model produces valid plan JSON and completes multi-step plans is unknown. Earlier live runs (B-003 to B-011) are recorded in `DEVELOPMENT_STATE/assignments.yaml` and predate the planner, `PlanRunner` and the CLI.
 
 **Known limitations (post-MVP):**
 
 - Steps run as independent tasks with no shared turns or observations; richer cross-step conversational context is post-MVP.
+- A step is recorded as completed when the model stops requesting tools and no tool call failed; nothing independently verifies that its work was done. A model that makes no tool call and claims success is recorded as completed.
 - Plan- and goal-level resume is post-MVP. Recovery works for an individual task. A crash mid-step leaves the step `RUNNING` with no reconciliation path, and resubmitting a goal creates a new plan.
-- A denial or rejection ends its step; it is not yet fed back to the model as an observation.
-- Permission enforcement is a tool-boundary policy, not isolation. The shell rules are regex heuristics and can be evaded, and there is no sandbox or container isolation (`SANDBOX_CONTRACT` is unimplemented).
+- Any tool error ends its step and is not fed back to the model: a denial, a rejection, a failed filesystem call (e.g. reading a missing file) or a command that exits non-zero. The model cannot react to the failure and retry within the step.
+- Permission enforcement is a tool-boundary policy, not isolation. File tools are confined to the workspace; **shell commands only start in the workspace and are not confined to it** (a command can write elsewhere without a prompt). The shell rules are regex heuristics and can be evaded, and there is no sandbox or container isolation (`SANDBOX_CONTRACT` is unimplemented).
 - The legacy YAML `ModelRegistry` is no longer used by production code but has not been deleted; three test modules and `scripts/run_live_groq_smoke_test.py` still import it.
 - Not started: MCP-based tool integration, sandboxed execution, multi-agent orchestration, retry/backoff, replanning, and a second real provider.
 
-**Running the tests:** start Postgres first (`docker compose up -d`). With the database down, the suite still reports zero failures but silently skips every database-backed test, including the real-tool integration proofs (about 33 tests at the last review). Live-provider tests skip without a credential.
+**Running the tests:** start Postgres first (`docker compose up -d`). With the database down, the suite still reports zero failures but silently skips every database-backed test, including the real-tool integration proofs (41 tests at the last full run). With Postgres up the suite is 409 collected, 400 passed, 0 failed, 9 skipped; the 9 skips are live-provider tests that need `GROQ_API_KEY`.
 
 This list reflects what has been built and tested in this repository, not a roadmap percentage.
+
+## Running Neptune
+
+```text
+pip install -r requirements.txt
+docker compose up -d                          # Postgres (required); tables and registry data are created on first run
+$env:GROQ_API_KEY = "..."                      # PowerShell; use export GROQ_API_KEY=... in sh
+$env:PYTHONPATH = "src"                        # there is no installed package; pytest.ini sets this for tests only
+python -m neptune "Create hello.txt containing hello, then read it back" --workspace ./some-dir
+```
+
+Neptune plans the goal, runs each step, and prints each tool call and the final state of every step. For an `ask`-classified action (installing packages, `git push`, network tools) it shows the command and asks `[y/N]`; anything but `y`/`yes` rejects. Exit codes: 0 every step completed with no tool errors; 1 not all steps completed; 2 usage or environment problem; 3 no valid plan could be produced.
+
+Two things to know before pointing it at a real directory: file tools are confined to `--workspace`, but **shell commands are not**; and "completed" means the model finished without a tool error, not that the result was checked.
 
 ## Free / Cheap-First Philosophy
 
@@ -112,14 +127,14 @@ Temporary credits or promotional access (cloud trial credits, limited-time API k
 - `06_REGISTRIES/` — provider/model/resource/tool catalogs and their YAML seed data.
 - `14_DEVELOPMENT_ORCHESTRATION/` — the two-agent (Claude A / Claude B) development methodology used to build Neptune itself.
 - `src/` — implementation: `core/` (domain, contracts, runtime, registry, resolution, planning), `neptune/` (Model Gateway, providers, tools, permission and approval, observation loop), `infrastructure/` (persistence).
-- `scripts/` — repository verification and live-provider probe scripts (not a product entry point).
-- `DIRECTOR_REVIEW_*.md` — read-only audits of the integrated system; the latest, `DIRECTOR_REVIEW_007.md`, is the current product-readiness assessment.
+- `scripts/` - repository verification and live-provider probe scripts. The product entry point is `python -m neptune` (`src/neptune/cli.py`).
+- `DIRECTOR_REVIEW_*.md` - read-only audits of the integrated system; the latest, `DIRECTOR_REVIEW_009.md`, is the MVP closure report (it follows the final audit `DIRECTOR_REVIEW_008.md`).
 - `tests/` — unit, contract, and integration tests, including live-provider and live-Postgres suites (skip automatically without credentials).
 - `DEVELOPMENT_STATE/` — machine-readable task assignments, dependencies, and decisions tracking parallel development.
 
 ## Current Next Milestone
 
-The remaining MVP implementation is the product entry point (`DIRECTOR_REVIEW_007.md`, tasks T1 to T4): a composition root and CLI that take a goal and a workspace path, build the registries, gateway, tools and `PlanRunner`, pass the goal text into each step, prompt interactively for approval behind `ApprovalProvider`, and are then validated once end to end with a real provider credential. None of this exists in the repository yet.
+The MVP implementation is complete up to real-model validation. The one remaining gate is a single recorded end-to-end run of the CLI with a real `GROQ_API_KEY` (see Not verified and `DIRECTOR_REVIEW_009.md`). Nothing else is scheduled; the post-MVP items under Known limitations are not started.
 
 Four architectural decisions are awaiting director ADR numbering. They are recorded, unnumbered and unapproved, in `DEVELOPMENT_STATE/assignments.yaml`.
 

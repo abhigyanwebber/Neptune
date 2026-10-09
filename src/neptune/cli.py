@@ -14,9 +14,9 @@ outcome. Human approval for ASK-classified actions is a CliApprovalProvider
 prompt on the same terminal. Requires PostgreSQL (docker compose up -d) and,
 for the default real model, GROQ_API_KEY.
 
-Exit codes: 0 every step succeeded; 1 plan ran but not all steps
-succeeded; 2 usage/environment problem; 3 the goal could not be turned
-into a valid plan.
+Exit codes: 0 every step completed with no tool errors; 1 plan ran but
+not all steps completed; 2 usage/environment problem; 3 the goal could
+not be turned into a valid plan.
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ from neptune.infrastructure.security.cli_approval import CliApprovalProvider
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="neptune", description="Give Neptune a goal; it plans and executes it.")
     p.add_argument("goal", help="what you want done, in plain language")
-    p.add_argument("--workspace", default=".", help="directory the agent may read/write/run commands in (default: current directory)")
+    p.add_argument("--workspace", default=".", help="directory the agent works in; file tools are confined to it, but shell commands only START there and are NOT confined (default: current directory)")
     p.add_argument("--max-turns", type=int, default=DEFAULT_MAX_TURNS_PER_STEP, help="model turns allowed per plan step")
     p.add_argument("--registry-dir", default=str(DEFAULT_REGISTRY_DIR), help="canonical registry seed data directory")
     return p
@@ -117,5 +117,5 @@ def main(
             output_fn(f"      model: {str(last['content']).strip()[:300]}")
 
     succeeded = all(s.status == StepStatus.COMPLETED for s in result.plan.steps)
-    output_fn("RESULT: " + ("all steps succeeded" if succeeded else "not all steps succeeded"))
+    output_fn("RESULT: " + ("all steps completed with no tool errors" if succeeded else "not all steps completed"))
     return 0 if succeeded else 1

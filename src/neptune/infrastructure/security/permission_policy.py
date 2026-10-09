@@ -71,8 +71,14 @@ _PRODUCTION_MIGRATION = re.compile(
     r"\bprod(uction)?\b.*\bmigrat(e|ion)\b|\bmigrat(e|ion)\b.*\bprod(uction)?\b",
     re.IGNORECASE,
 )
+# The secret term must be a standalone token, where "_" counts as a
+# separator: GROQ_API_KEY, GITHUB_TOKEN, DB_PASSWORD, AWS_SECRET_ACCESS_KEY
+# all match, while tokenizer.py / passwords.txt do not. (A plain \b before
+# the term, as originally written, never matched a real variable name,
+# because "_" is a word character: there is no boundary in GROQ_API_KEY.
+# MVP closure, Review 009.) Still a heuristic, not a guarantee.
 _EXPORT_SECRET = re.compile(
-    r"\b(cat|printenv|echo)\b[^\n]*\b(SECRET|API_KEY|TOKEN|PASSWORD|PRIVATE_KEY)\b",
+    r"\b(cat|printenv|echo)\b[^\n]*(?<![A-Za-z0-9])(SECRET|API_KEY|TOKEN|PASSWORD|PRIVATE_KEY)(?![A-Za-z0-9])",
     re.IGNORECASE,
 )
 

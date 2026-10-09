@@ -11,6 +11,12 @@ workers:
       the director should set both. A's most recent completed entries in
       assignments.yaml are NEPTUNE-A-011-GOAL-TO-EXECUTION-INTEGRATION
       and NEPTUNE-DIRECTOR-REVIEW-007.
+      Added by the MVP closure pass: A has since completed
+      NEPTUNE-MVP-PRODUCT-PATH-T1-T3, NEPTUNE-DIRECTOR-REVIEW-008 and
+      NEPTUNE-MVP-CLOSURE-PASS (all recorded in assignments.yaml).
+      current_task remains null; no task is in progress. The only open
+      MVP item is a real-model end-to-end run, which needs a
+      GROQ_API_KEY.
   - worker_id: B
     account_role: infrastructure-integration
     status: idle

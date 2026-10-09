@@ -1146,3 +1146,63 @@ decisions:
       B-013 and a natural place to resolve the tool_execution.py docstring
       inconsistency in B-DEC-033.
     reversible: true
+
+  - id: ADR-A-017
+    made_by: claude-a
+    title: "Composition root and per-step goal context for plan execution (ledger id, not an ADR number)"
+    rationale: >
+      Task NEPTUNE-MVP-PRODUCT-PATH-T1-T3, commit 9a5d643. The system's
+      first production composition lives in
+      neptune.application.composition.build_plan_runner; the CLI is only
+      argument parsing, printing and an approval prompt. The model gateway is
+      a factory parameter so tests substitute only the model. The original
+      goal is carried into each step as a labelled background requirement,
+      reusing the existing requirements-to-prompt path rather than adding a
+      context mechanism; prior steps' turns and observations are still not
+      carried. A gateway error response in a step's final turn fails the step,
+      because RuntimeDriver reads an error response with no tool calls as a
+      normal completion. This supersedes the statement under B-DEC-033 that no
+      production composition root instantiates ToolExecutorService (only tests
+      do): as of 9a5d643 composition.py does, and supplies a
+      CliApprovalProvider. B-DEC-033 is left as written because it was true
+      when recorded. Proposed ADR (title only, no number, not approved,
+      pending director): "Production composition root and goal context for
+      PlanRunner steps".
+    reversible: true
+
+  - id: ADR-A-018
+    made_by: claude-a
+    title: "A failed command is a failed tool execution (ledger id, not an ADR number)"
+    rationale: >
+      Task NEPTUNE-MVP-CLOSURE-PASS. RunCommandTool deliberately returns a
+      non-zero exit or a timeout as a normal result, and the executor labelled
+      that SUCCESS, so the observation said status "ok" and the loop, the
+      step and the CLI could all report success for a failed command (shown by
+      Reviews 008 and 008B). The fix is in ToolExecutorService, where the
+      result outcome is decided: a result with timed_out true is TIMEOUT, a
+      non-zero integer exit_code is ERROR, output is preserved. The tool's own
+      contract and unit tests are unchanged. Consequence recorded, not
+      resolved: any failing command now ends its step, including one the model
+      would have fixed and retried (for example a failing test run), because
+      RuntimeDriver stops on any error observation. Feeding errors back to the
+      model is the deferred T6 item. Proposed ADR (title only, no number, not
+      approved, pending director): "Tool-reported command failure maps to
+      ToolOutcome ERROR/TIMEOUT".
+    reversible: true
+
+  - id: ADR-A-019
+    made_by: claude-a
+    title: "Export-secret rule matches real variable names (ledger id, not an ADR number)"
+    rationale: >
+      Task NEPTUNE-MVP-CLOSURE-PASS. 02_PERMISSION_MODEL.md lists "export
+      secret" as deny. The B-012 pattern put a word boundary before the
+      secret term, and "_" is a word character, so it never matched
+      GROQ_API_KEY, GITHUB_TOKEN, DB_PASSWORD or AWS_SECRET_ACCESS_KEY, only a
+      bare token. Plain `echo %GROQ_API_KEY%` was therefore allowed. The
+      correction treats "_" as a separator and keeps letters and digits as
+      part of a word, so tokenizer.py and passwords.txt still pass. It stays
+      within the documented heuristic scope: it does not catch `set`, `env`,
+      bare `printenv`, or an interpreter one-liner that reads the environment,
+      and it is not a security guarantee. No new policy mechanism was added.
+      No ADR proposed; this restores the documented behavior.
+    reversible: true

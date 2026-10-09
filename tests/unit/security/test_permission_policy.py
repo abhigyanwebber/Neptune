@@ -106,3 +106,45 @@ def test_malformed_command_argument_does_not_crash(policy: DefaultPermissionPoli
     verdict = policy.evaluate(make_call("run_command", {"command": 12345}))
     assert verdict.decision == PermissionDecision.ALLOW
 
+
+
+# --- MVP closure (Review 009): real variable names must hit the secret rule ---
+# 02_PERMISSION_MODEL.md: "export secret" -> deny. The original pattern put a
+# plain \b before the secret term, which can never match inside a real
+# variable name (GROQ_API_KEY) because "_" is a word character.
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo %GROQ_API_KEY%",          # cmd.exe (the case B's audit found)
+        "echo $GROQ_API_KEY",           # sh
+        "echo ${GROQ_API_KEY}",
+        "echo $env:GROQ_API_KEY",       # PowerShell
+        "printenv GITHUB_TOKEN",
+        "echo %DB_PASSWORD%",
+        "echo $AWS_SECRET_ACCESS_KEY",
+        "echo API_KEY",                 # the bare forms the old rule did catch
+        "printenv TOKEN",
+    ],
+)
+def test_printing_a_secret_variable_is_denied(policy: DefaultPermissionPolicy, command: str) -> None:
+    verdict = policy.evaluate(make_call("run_command", {"command": command}))
+    assert verdict.decision == PermissionDecision.DENY, command
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cat tokenizer.py",             # TOKEN followed by letters: not a secret reference
+        "cat passwords.txt",
+        "echo secretary",
+        "echo hello",
+        "cat README.md",
+        "pytest -q",
+    ],
+)
+def test_ordinary_commands_that_merely_contain_the_letters_are_not_denied(
+    policy: DefaultPermissionPolicy, command: str
+) -> None:
+    verdict = policy.evaluate(make_call("run_command", {"command": command}))
+    assert verdict.decision == PermissionDecision.ALLOW, command

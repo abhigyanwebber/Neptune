@@ -69,7 +69,7 @@ def test_case3_ask_approved_reaches_real_tool(workspace: WorkspaceBoundary) -> N
     result = executor.execute(
         make_call(
             "run_command",
-            {"command": f"curl --version; echo ran > {marker}"},
+            {"command": f"curl --version && echo ran > {marker}"},
         )
     )
     assert result.outcome == ToolOutcome.SUCCESS

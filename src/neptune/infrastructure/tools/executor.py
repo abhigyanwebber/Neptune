@@ -40,6 +40,22 @@ DEFAULT_TIMEOUT_SECONDS = 10.0
 DEFAULT_MAX_OUTPUT_BYTES = 32_000
 
 
+def _command_failure(output: object) -> tuple[ToolOutcome, str] | None:
+    """Detects a failed command in a tool's result dict, by the
+    `timed_out` / `exit_code` fields RunCommandTool documents. Returns
+    (outcome, message), or None when the output reports no failure --
+    including for every tool that has neither field (filesystem tools).
+    A bool is not an exit code."""
+    if not isinstance(output, dict):
+        return None
+    if output.get("timed_out") is True:
+        return ToolOutcome.TIMEOUT, f"command timed out after {output.get('timeout_seconds')}s"
+    exit_code = output.get("exit_code")
+    if isinstance(exit_code, int) and not isinstance(exit_code, bool) and exit_code != 0:
+        return ToolOutcome.ERROR, f"command exited with code {exit_code}"
+    return None
+
+
 class ToolExecutorService:
     """Reference ToolExecutor implementation.
 
@@ -137,6 +153,19 @@ class ToolExecutorService:
         size_error = self._check_output_size(output)
         if size_error:
             return self._result(call, start, ToolOutcome.ERROR, error_message=size_error)
+
+        # MVP closure (Review 008): a tool that ran but reports a failed
+        # command -- non-zero exit_code, or timed_out (RunCommandTool's
+        # documented result fields) -- is a FAILED execution, not a
+        # success. Previously this was labelled SUCCESS, so
+        # ToolPortAdapter reported status "ok", RuntimeDriver kept going,
+        # and PlanRunner/CLI could report "all steps succeeded" for a
+        # command that failed. The output (stdout/stderr/exit_code) is
+        # kept so the observation still carries the evidence.
+        command_failure = _command_failure(output)
+        if command_failure is not None:
+            outcome, message = command_failure
+            return self._result(call, start, outcome, output=output, error_message=message)
 
         return self._result(call, start, ToolOutcome.SUCCESS, output=output)
 

@@ -1332,3 +1332,104 @@ assignments:
       Backfilled by the MVP bookkeeping reconciliation. worker_id follows the
       branch the commit lives on (worker/claude-a); every commit in this
       repository shares one git identity. Its T5 item is this reconciliation.
+
+  - task_id: NEPTUNE-MVP-PRODUCT-PATH-T1-T3
+    worker_id: A
+    title: "MVP product path: goal context (T2), CLI entry point (T1), human approval (T3)"
+    status: complete
+    authorized_by: director
+    depends_on: [A-011, B-013, NEPTUNE-DIRECTOR-REVIEW-007]
+    commit: 9a5d643
+    scope: >
+      Backfilled by the MVP closure pass; the work itself is commit
+      9a5d643 on worker/claude-a. T2: PlanRunner now passes the original
+      goal text into every step's requirements, labelled as background
+      (only requirements reach the model prompt; constraints do not). Also
+      fixed in that commit: a gateway error response in a step's final turn
+      (ADR-045's normalized error key, no tool calls) was read by
+      RuntimeDriver as an ordinary completion, so PlanRunner now fails the
+      step. T1: neptune.application.composition.build_plan_runner (single
+      composition root: seeds the canonical registry from
+      06_REGISTRIES/data, builds the four real tools under one
+      WorkspaceBoundary, wires ToolOfferingResolver as the RuntimeDriver
+      context_provider, takes the model gateway as an injectable factory)
+      and neptune.cli / neptune.__main__ (thin CLI, exit codes 0/1/2/3).
+      T3: CliApprovalProvider implementing the existing ApprovalProvider
+      protocol; explicit y/yes approves, anything else or EOF rejects.
+      Run with PYTHONPATH=src; there is no installed package.
+    tests: >
+      27 new tests (2 PlanRunner unit, 17 CliApprovalProvider unit, 8 CLI
+      integration through the real composition with only the model faked).
+      Suite at that commit with Postgres up: 386 collected, 377 passed, 0
+      failed, 9 skipped (all GROQ_API_KEY). No live-provider run.
+    note: >
+      The CLI integration test for ASK+approve originally used
+      `curl --version; echo ran > marker`. On the Windows shell `;` is not
+      a separator, so that command actually exited non-zero while the test
+      passed; this was only discovered when failed commands stopped being
+      reported as success (see NEPTUNE-MVP-CLOSURE-PASS).
+
+  - task_id: NEPTUNE-DIRECTOR-REVIEW-008
+    worker_id: A
+    title: "Final MVP Readiness Audit"
+    status: complete
+    authorized_by: director
+    commit: 01c8ae0
+    deliverable: DIRECTOR_REVIEW_008.md
+    verdict: NOT YET MVP READY
+    scope: >
+      Read-only audit of main at 54c3c29. Findings: no real-model evidence
+      for the current code (001); a failed shell command printed as success
+      and a step with no tool call counted as completed (002); --workspace
+      help overstated shell confinement (003); any tool error ends its step
+      (004, post-MVP as scoped); stale README, ledger and decisions (005);
+      exit code 3 conflates plan failure with provider failure (006);
+      suite skips 41 database tests when Postgres is down (007); fresh
+      checkout runs as documented (008, closed). Reproduced the director's
+      figure exactly: 336 passed, 50 skipped as found (41 Postgres, 9
+      GROQ_API_KEY); 377 passed, 9 skipped with Postgres up.
+    note: >
+      Its author also wrote the T1-T3 code it examines; the document says so.
+      An independent audit, DIRECTOR_REVIEW_008B.md by lane B, is referred to
+      by the closure brief but was not present in the repository at the time
+      of the closure pass.
+
+  - task_id: NEPTUNE-MVP-CLOSURE-PASS
+    worker_id: A
+    title: "Final MVP closure: false-success fix, secret-rule fix, documentation, regression"
+    status: complete
+    authorized_by: director
+    depends_on: [NEPTUNE-MVP-PRODUCT-PATH-T1-T3, NEPTUNE-DIRECTOR-REVIEW-008]
+    deliverable: DIRECTOR_REVIEW_009.md
+    scope: >
+      (1) False success: ToolExecutorService now returns TIMEOUT for a tool
+      result with timed_out true and ERROR for a non-zero integer exit_code,
+      keeping the output (stdout, stderr, exit_code) in the result; this
+      flows through ToolPortAdapter as status "error", so RuntimeDriver
+      stops (STOPPED_TOOL_FAILURE), PlanRunner fails the step, dependent
+      steps are skipped and the CLI exits 1 with "not all steps completed".
+      The final CLI line was reworded because "succeeded" overstated a step
+      whose model made no tool call. (2) Permission edge case: the
+      export-secret regex required a word boundary before the secret term,
+      which cannot match inside a real variable name because "_" is a word
+      character, so `echo %GROQ_API_KEY%` was allowed although
+      02_PERMISSION_MODEL.md says export secret is deny; the boundary is
+      now "not preceded or followed by a letter or digit". Still a
+      heuristic. (3) --workspace help corrected: file tools are confined,
+      shell commands only start there. (4) README, this ledger, workers.yaml
+      and decisions.yaml reconciled. Two existing tests that asserted
+      success for a command that actually failed on this shell were
+      corrected to use `&&`.
+    tests: >
+      With Postgres confirmed reachable: 409 collected, 400 passed, 0
+      failed, 9 skipped (all GROQ_API_KEY). 23 new tests: 15 policy
+      regression cases, 5 command-failure semantics, 3 CLI.
+    live_validation: >
+      NOT PERFORMED. GROQ_API_KEY is not set at process, user or machine
+      level and the project has no .env. Verified only up to the provider:
+      with a deliberately invalid key the real CLI seeds the registry,
+      routes to Groq and receives a genuine HTTP 401. No real-model result
+      is claimed.
+    adr_proposed_awaiting_director_number: >
+      None created. See ADR-A-017 to ADR-A-019 in decisions.yaml for the
+      title-only proposals, all unnumbered and unapproved.
