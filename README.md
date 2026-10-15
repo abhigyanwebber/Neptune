@@ -2,7 +2,7 @@
 
 **A reusable, project-agnostic agent infrastructure — a provider-agnostic, self-hostable, Claude-Code-like execution environment.**
 
-Specification version: 0.7.1 · Phase: implementation (post-architecture-freeze) · Status: MVP path implemented (goal -> plan -> execution through a CLI) and tested with a faked model; real-model validation not yet performed
+Specification version: 0.7.1 · Phase: implementation (post-architecture-freeze) · Status: MVP path implemented (goal -> plan -> execution through a CLI) and verified end to end with a real model on one goal (see Running Neptune)
 
 ## What is Neptune?
 
@@ -55,7 +55,7 @@ Checkpoint / Recovery
 
 ## Current State
 
-Neptune can be run: `python -m neptune "<goal>" --workspace DIR` plans the goal, runs each step through the runtime with real filesystem and shell tools, enforces the permission policy, and asks you at the terminal before any `ask`-classified action (see **Running Neptune**). This path is tested end to end with a **faked model** against real Postgres, tools and permission policy. It has **not yet been validated against a real model** (see Not verified). Closure report: `DIRECTOR_REVIEW_009.md`.
+Neptune can be run: `python -m neptune "<goal>" --workspace DIR` plans the goal, runs each step through the runtime with real filesystem and shell tools, enforces the permission policy, and asks you at the terminal before any `ask`-classified action (see **Running Neptune**). This path is tested end to end with a **faked model** against real Postgres, tools and permission policy. It has also been run once end to end with a real model (see **Verified live run**): that is one goal on one model, not a reliability measurement. Closure report: `DIRECTOR_REVIEW_009.md` (with a dated addendum).
 
 **Implemented and tested:**
 
@@ -80,19 +80,19 @@ Neptune can be run: `python -m neptune "<goal>" --workspace DIR` plans the goal,
 
 **Not verified:**
 
-- No real-model run of the current system has ever been performed. The live tests for `GoalPlanner` (A-010) and `PlanRunner` (A-011) have never run, and the CLI has not been run with a real `GROQ_API_KEY`: no key was available where this was verified. The real path is verified only up to the provider: with an invalid key the CLI seeds the registry, routes to Groq and receives a genuine `401`. Whether a free-tier model produces valid plan JSON and completes multi-step plans is unknown. Earlier live runs (B-003 to B-011) are recorded in `DEVELOPMENT_STATE/assignments.yaml` and predate the planner, `PlanRunner` and the CLI.
+- Real-model behaviour beyond one run. The acceptance run (see Verified live run) is one goal on one model; reliability across goals, models and platforms is unmeasured. The live tests need `GROQ_API_KEY` and skip without it. Three older live tests (B-008 `test_live_first_agent_turn`, B-009 `test_full_live_agent_loop`, B-011 `test_full_live_agent_loop_dynamic_tools`) still assume the registry was already seeded and fail when run alone on an empty database; they pass in suite order because the CLI tests seed it first. The A-010 and A-011 live tests seed the registry themselves.
 
 **Known limitations (post-MVP):**
 
 - Steps run as independent tasks with no shared turns or observations; richer cross-step conversational context is post-MVP.
-- A step is recorded as completed when the model stops requesting tools and no tool call failed; nothing independently verifies that its work was done. A model that makes no tool call and claims success is recorded as completed.
+- A step is recorded as completed when the model stops requesting tools and no tool call failed; nothing independently verifies that its work was done. A model that makes no tool call and claims success is recorded as completed. Observed live when a test harness gave the model no tool schemas: it answered in prose, claimed a verification it had not performed, and both steps were recorded completed with an empty workspace. The A-011 live test now fails on that.
 - Plan- and goal-level resume is post-MVP. Recovery works for an individual task. A crash mid-step leaves the step `RUNNING` with no reconciliation path, and resubmitting a goal creates a new plan.
 - Any tool error ends its step and is not fed back to the model: a denial, a rejection, a failed filesystem call (e.g. reading a missing file) or a command that exits non-zero. The model cannot react to the failure and retry within the step.
 - Permission enforcement is a tool-boundary policy, not isolation. File tools are confined to the workspace; **shell commands only start in the workspace and are not confined to it** (a command can write elsewhere without a prompt). The shell rules are regex heuristics and can be evaded, and there is no sandbox or container isolation (`SANDBOX_CONTRACT` is unimplemented).
 - The legacy YAML `ModelRegistry` is no longer used by production code but has not been deleted; three test modules and `scripts/run_live_groq_smoke_test.py` still import it.
 - Not started: MCP-based tool integration, sandboxed execution, multi-agent orchestration, retry/backoff, replanning, and a second real provider.
 
-**Running the tests:** start Postgres first (`docker compose up -d`). With the database down, the suite still reports zero failures but silently skips every database-backed test, including the real-tool integration proofs (41 tests at the last full run). With Postgres up the suite is 409 collected, 400 passed, 0 failed, 9 skipped; the 9 skips are live-provider tests that need `GROQ_API_KEY`.
+**Running the tests:** start Postgres first (`docker compose up -d`). With the database down, the suite still reports zero failures but silently skips every database-backed test (41 tests at one full run), including the real-tool integration proofs. With Postgres up and no key, on an empty database: 412 collected, 403 passed, 0 failed, 9 skipped; the 9 skips are live-provider tests that need `GROQ_API_KEY`. With a key, on an empty database: 412 passed, 0 skipped (the live tests executed). `requirements.txt` pins `pytest>=8,<9`; that resolves to pytest 8.4.2 and the suite passed under it (400 passed, 9 skipped, at commit `96237b1`). A locally installed pytest 9.1.1 also passes, so a newer local pytest is environment drift, not a defect, and the pin was not changed.
 
 This list reflects what has been built and tested in this repository, not a roadmap percentage.
 
@@ -109,6 +109,10 @@ python -m neptune "Create hello.txt containing hello, then read it back" --works
 Neptune plans the goal, runs each step, and prints each tool call and the final state of every step. For an `ask`-classified action (installing packages, `git push`, network tools) it shows the command and asks `[y/N]`; anything but `y`/`yes` rejects. Exit codes: 0 every step completed with no tool errors; 1 not all steps completed; 2 usage or environment problem; 3 no valid plan could be produced.
 
 Two things to know before pointing it at a real directory: file tools are confined to `--workspace`, but **shell commands are not**; and "completed" means the model finished without a tool error, not that the result was checked.
+
+**Tested platform:** Windows (shell `cmd.exe`), Python 3.14.5, Postgres via Docker Desktop. Nothing has been run on Linux or macOS and there is no CI. The shell tool uses the platform's default shell (`/bin/sh` on POSIX) and its description now tells the model which shell that is, because a model otherwise assumes a POSIX shell (`sh -c ...`), which does not exist on Windows. POSIX behaviour is untested.
+
+**Verified live run (2026-10-11, commit `96237b1`, real Groq `openai/gpt-oss-120b`):** the goal `Create a file named hello.txt containing hello, then read it and verify its contents.` produced a valid 2-step plan that was persisted and ended `completed`; the real tools ran (`write_file` wrote 5 bytes, `list_directory`, `read_file` returned `hello`); the file on disk was exactly `b'hello'`; and the CLI reported `all steps completed with no tool errors` with exit 0. Verified from the persisted records and the file, not from the CLI summary. A second real-model run asked for a failing command: the model sent `sh -c 'exit 3'`, which genuinely failed on Windows with exit code 1; the step was recorded `failed`, its dependent `skipped`, and the CLI reported `not all steps completed` with exit 1. This is one goal on one model, not a reliability measurement.
 
 ## Free / Cheap-First Philosophy
 
@@ -134,7 +138,7 @@ Temporary credits or promotional access (cloud trial credits, limited-time API k
 
 ## Current Next Milestone
 
-The MVP implementation is complete up to real-model validation. The one remaining gate is a single recorded end-to-end run of the CLI with a real `GROQ_API_KEY` (see Not verified and `DIRECTOR_REVIEW_009.md`). Nothing else is scheduled; the post-MVP items under Known limitations are not started.
+The MVP implementation is complete and has been verified end to end with a real model on one goal. Nothing further is scheduled; the post-MVP items under Known limitations are not started.
 
 Four architectural decisions are awaiting director ADR numbering. They are recorded, unnumbered and unapproved, in `DEVELOPMENT_STATE/assignments.yaml`.
 

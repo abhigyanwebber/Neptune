@@ -58,6 +58,6 @@ def test_population_survives_process_termination_and_is_auditable():
     assert result["ollama_found"] is True
     assert result["openai_compatible_found"] is True
     assert result["audit_events_present"] is True
-    assert result["audit_event_types_include_provider_registered"] is True
+    assert result["audit_event_types_include_provider_load_event"] is True
     assert result["snapshot_provider_count"] == result["provider_count"]
     assert result["snapshot_schema_version"] == "1.1"

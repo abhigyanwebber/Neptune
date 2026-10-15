@@ -136,3 +136,28 @@ Found during this pass, **not fixed** (not on the closure list):
 **Exact remaining blocker:** a single recorded run of `python -m neptune` with a real `GROQ_API_KEY`. Everything the MVP contract requires of the code and documentation is in place and tested with the model faked; what no one has ever observed is a real model producing a valid plan, choosing tools and completing steps through *this* system. It cannot be closed from within this environment because it needs a credential I do not have, and fabricating or inferring it would defeat its purpose.
 
 Once that run is recorded (pass or fail), the verdict can be revisited. If it fails because the model's first failed `read_file` or failing command ends a step, that is the deferred stop-on-error limitation (§2, §7), and whether to address it before freezing is the director's call; it is not part of this closure.
+
+
+---
+
+## Addendum (2026-10-13): live acceptance run and release cleanup
+
+Sections 1-9 above are left as written. They describe the repository at commit `96237b1`, where the verdict was NOT YET MVP READY because no real-model run existed. This addendum records what happened afterwards; it does not rewrite those findings.
+
+**The blocker named in section 9 is closed.** On 2026-10-11, at `96237b1`, the CLI was run against the real Groq API (`openai/gpt-oss-120b`) with the goal `Create a file named hello.txt containing hello, then read it and verify its contents.`:
+- the model produced a valid 2-step plan (`write_file` then `read_file`, with a dependency), persisted and ended `completed`; each step's stored request contained the original goal;
+- the real tools ran: `write_file` wrote 5 bytes, `list_directory` returned `hello.txt`, `read_file` returned `hello`; the file on disk was exactly `b'hello'`;
+- the CLI exited 0 with `all steps completed with no tool errors`. This was verified from the persisted plan, turns and tool-call records and the file, not from the CLI text.
+- A second real-model run asked for a failing command. The model sent `sh -c 'exit 3'`, which genuinely failed on Windows (`sh` is not recognized, exit code 1). The observation was `status: error` with the exit code and stderr preserved, the step was `failed`, its dependent `skipped`, the CLI printed `not all steps completed` and exited 1. A failed command was not reported as success.
+- Full suite at that point, with the key and Postgres up: 409 passed, 0 failed, 0 skipped (the nine live tests executed).
+This is one goal on one model, not a reliability measurement.
+
+**Release cleanup (working-tree changes, see ledger `NEPTUNE-RELEASE-CLEANUP`):**
+1. The A-010 and A-011 live tests now seed the canonical registry themselves. Before, they failed on an empty database with `no candidate satisfies requirements` and passed only because the CLI tests seeded it first in suite order.
+2. The A-011 live test now asserts real outcomes (every step `COMPLETED`, `hello.txt` exactly `hello`, a successful `write_file`, a `read_file` returning `hello`, the first response from the real provider). Strengthening it exposed a defect in the test itself: its adapter was built without `concrete_tool_definitions`, so the model had no tool schemas, answered in prose, and claimed a verification it never performed; both steps were recorded completed with an empty workspace. The earlier weak assertions could not see this. The test now passes the real tool definitions.
+3. `test_registry_population_recovery` now accepts `registry.provider.registered` or `registry.provider.updated`. Cause confirmed in the implementation: `register()` emits `registered`, `update()` emits `updated`, and the loader upserts, so loading into a registry another process already populated (the CLI tests) emits `updated`. The recovery checks are unchanged. No audit events were added to CLI startup; the loader upserts every entry, so that would add about 30 events to every run.
+4. The `run_command` description now names the shell (`cmd.exe` on Windows, `/bin/sh` elsewhere). Description text only; execution, boundaries and policy are unchanged. In a small live comparison on one goal the unmodified description led the model to send `sh -c "exit 3"` in 2 of 3 runs, and the new wording led it to send plain `exit 3` in 3 of 3. That is suggestive, not proof.
+
+**Results after cleanup:** on an empty database (verified 0 tables before), full suite without a key: 412 collected, 403 passed, 0 failed, 9 skipped (all `GROQ_API_KEY`); with a key: 412 passed, 0 skipped. Each modified test was also run alone on an empty database, and both live tests in both orders.
+
+**Still true, not fixed:** three older live tests (B-008, B-009, B-011) fail when run alone on an empty database for the same seeding reason and pass only in suite order; any tool error ends its step; the shell is not confined to the workspace; "completed" is not "verified"; only Windows has been run; the CLI prints a traceback if Postgres is down. `requirements.txt` was not changed: `pytest>=8,<9` resolves to 8.4.2 and the suite passed under it at `96237b1`; a locally installed pytest 9.1.1 also passes, so that is environment drift.

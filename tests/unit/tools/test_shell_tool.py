@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from neptune.core.contracts.tool_execution import ToolInputError
+from neptune.infrastructure.tools.shell_tool import _shell_label
 from neptune.infrastructure.tools.shell_tool import RunCommandTool
 
 
@@ -97,3 +98,26 @@ def test_definition_has_expected_shape(tool: RunCommandTool) -> None:
     definition = tool.definition()
     assert definition.name == "run_command"
     assert definition.parameters_schema["required"] == ["command"]
+
+
+# --- release cleanup: the model is told which shell it is using ------------
+
+def test_shell_label_names_cmd_exe_on_windows() -> None:
+    label = _shell_label("nt")
+    assert "cmd.exe" in label
+    # The point of the text: warn that POSIX tools may not exist.
+    for posix_tool in ("sh", "ls", "cat", "grep"):
+        assert posix_tool in label
+
+
+def test_shell_label_names_the_posix_shell_elsewhere() -> None:
+    assert "/bin/sh" in _shell_label("posix")
+    assert "cmd.exe" not in _shell_label("posix")
+
+
+def test_definition_description_names_the_actual_shell_and_keeps_its_contract(tool: RunCommandTool) -> None:
+    description = tool.definition().description
+    assert _shell_label(os.name) in description
+    # Existing contract text is preserved.
+    assert "working directory fixed to the workspace root" in description
+    assert "exit_code" in description and "stdout" in description and "stderr" in description

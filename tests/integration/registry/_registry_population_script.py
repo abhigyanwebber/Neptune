@@ -102,8 +102,14 @@ def do_verify() -> None:
         "ollama_found": ollama is not None,
         "openai_compatible_found": openai_compatible is not None,
         "audit_events_present": len(audit_trail) > 0,
-        "audit_event_types_include_provider_registered": "registry.provider.registered"
-        in audit_event_types,
+        # A first-ever load emits registry.provider.registered; a load into a
+        # registry another process already populated emits
+        # registry.provider.updated (the loader upserts). Either proves the
+        # load's audit events were durably written and are readable from this
+        # separate process.
+        "audit_event_types_include_provider_load_event": bool(
+            {"registry.provider.registered", "registry.provider.updated"} & audit_event_types
+        ),
         "snapshot_provider_count": len(snapshot["providers"]),
         "snapshot_schema_version": snapshot["schema_version"],
     }

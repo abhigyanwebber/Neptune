@@ -30,6 +30,7 @@ from core.planning.executor import PlanExecutor
 from core.planning.models import Goal, StepStatus
 from core.planning.plan_runner import PlanRunner
 from core.planning.planner import GoalPlanner
+from _registry_seed import seed_canonical_registry
 from core.registry.registry_loader import load_tools
 from core.registry.tool_registry import ToolRegistry as CanonicalToolRegistry
 from core.resolution.tool_offering_resolver import ToolOfferingResolver
@@ -346,6 +347,7 @@ def test_real_goal_flows_through_plan_runner_to_real_execution_live_groq(tmp_pat
     create_all_tables(engine)
     sf = make_session_factory(engine)
 
+    seed_canonical_registry(sf)  # independent of any other test having run first
     resolver, real_executor = _make_harness(sf, tmp_path)
 
     cap_resolver = CapabilityResolver(
@@ -376,9 +378,25 @@ def test_real_goal_flows_through_plan_runner_to_real_execution_live_groq(tmp_pat
     plan_executor = PlanExecutor(plan_repo)
     planner = GoalPlanner(model_gateway=planning_gateway, plan_repository=plan_repo, plan_executor=plan_executor)
 
+    # The real model must be given the real tool schemas. Without
+    # concrete_tool_definitions the catalog entry "filesystem" expands to
+    # nothing usable (the gap Review 008 confirmed closed in the production
+    # composition), so the model answered in prose, made no tool call, and
+    # steps were recorded completed with an empty workspace. The earlier,
+    # weaker assertions could not see that.
+    boundary = WorkspaceBoundary(tmp_path)
+    concrete_tools = [
+        t.definition() for t in (ReadFileTool(boundary), WriteFileTool(boundary), RunCommandTool(boundary.root))
+    ]
+
     def live_driver_factory(task_id: str) -> RuntimeDriver:
         session_id_hint = f"{task_id}-session"
-        model_gateway = ModelGatewayAdapter(gateway_service, task_id=task_id, session_id=session_id_hint)
+        model_gateway = ModelGatewayAdapter(
+            gateway_service,
+            task_id=task_id,
+            session_id=session_id_hint,
+            concrete_tool_definitions=concrete_tools,
+        )
         tool_port = ToolPortAdapter(real_executor, task_id=task_id, session_id=session_id_hint)
         runtime = AgentRuntime(
             task_repo=SqlAlchemyTaskRepository(sf),
@@ -405,11 +423,30 @@ def test_real_goal_flows_through_plan_runner_to_real_execution_live_groq(tmp_pat
         )
     )
 
-    assert len(result.plan.steps) >= 1
-    assert len(result.step_results) >= 1
-    # Live-model behavior variance is possible (same caveat B-009's own
-    # live test documents) -- assert the wiring produced a real,
-    # non-error outcome for at least the first step, not that every
-    # step necessarily succeeded end to end.
-    first = result.step_results[0].driver_result
-    assert "error" not in (first.turns_run[0].model_response or {})
+    # --- Real outcomes (strengthened per the release-closure review). The
+    # earlier version only checked that the first response had no error, so it
+    # would pass with a failed step or no file written. This fails if any
+    # step fails, or the file is absent or wrong. ---
+    statuses = {s.step_id: s.status for s in result.plan.steps}
+    assert statuses and all(st == StepStatus.COMPLETED for st in statuses.values()), statuses
+    assert plan_executor.all_succeeded(result.plan) is True
+    persisted = plan_repo.get(result.plan.plan_id)
+    assert persisted is not None
+    assert {s.step_id: s.status for s in persisted.steps} == statuses
+
+    # The file exists in the intended workspace with exactly "hello".
+    assert (tmp_path / "hello.txt").read_bytes() == b"hello"
+
+    # Tool-call records: a successful write, and a read that returned "hello".
+    calls = [c for r in result.step_results for t in r.driver_result.turns_run for c in t.tool_calls]
+
+    def by_name(name):
+        return [c for c in calls if (c.get("request") or {}).get("tool_name") == name]
+
+    writes, reads = by_name("write_file"), by_name("read_file")
+    assert writes and all(c["observation"]["status"] == "ok" for c in writes)
+    assert reads and any((c["observation"].get("result") or {}).get("content") == "hello" for c in reads)
+
+    # The first model response really came from the real provider, without error.
+    first_response = result.step_results[0].driver_result.turns_run[0].model_response
+    assert first_response["provider_id"] == "groq" and "error" not in first_response

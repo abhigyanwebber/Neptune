@@ -1433,3 +1433,76 @@ assignments:
     adr_proposed_awaiting_director_number: >
       None created. See ADR-A-017 to ADR-A-019 in decisions.yaml for the
       title-only proposals, all unnumbered and unapproved.
+
+  - task_id: NEPTUNE-T4-LIVE-ACCEPTANCE
+    worker_id: A
+    title: "Final MVP acceptance: real-model end-to-end CLI run"
+    status: complete
+    authorized_by: director
+    depends_on: [NEPTUNE-MVP-CLOSURE-PASS]
+    commit: 96237b1
+    result: PASS
+    scope: >
+      Run date 2026-10-11 (machine clock). The CLI was run at 96237b1 against
+      the real Groq API (openai/gpt-oss-120b) with the goal "Create a file
+      named hello.txt containing hello, then read it and verify its
+      contents." in a fresh empty workspace. Verified from the persisted
+      plan, turns and tool-call records and the file itself, not from the CLI
+      summary: a valid 2-step plan (write_file, read_file, dependent) persisted
+      and completed; write_file wrote 5 bytes, list_directory returned
+      hello.txt, read_file returned "hello"; the file on disk was exactly
+      b'hello'; every stored model response had provider_id groq; CLI exit 0
+      with "all steps completed with no tool errors". A second real-model run
+      asked for a failing command; the model sent `sh -c 'exit 3'`, which
+      failed on Windows with exit code 1; the observation was status error
+      with stderr preserved, the step failed, its dependent was skipped, and
+      the CLI exited 1 with "not all steps completed".
+    tests: >
+      Full suite at 96237b1 with the key and Postgres up: 409 collected, 409
+      passed, 0 failed, 0 skipped (the nine live tests executed). One goal on
+      one model; not a reliability measurement. Windows only.
+    note: >
+      Evidence was produced in a working session and is not stored in the
+      repository; the claims above are summarized from it.
+
+  - task_id: NEPTUNE-RELEASE-CLEANUP
+    worker_id: A
+    title: "Release cleanup: live-test seeding, A-011 assertions, registry test, shell description, documentation"
+    status: complete
+    authorized_by: director
+    depends_on: [NEPTUNE-T4-LIVE-ACCEPTANCE]
+    deliverable: "README.md, DIRECTOR_REVIEW_009.md (dated addendum), this entry"
+    scope: >
+      (1) tests/integration/planning/_registry_seed.py (new) seeds the
+      canonical registry the way the production composition does; the A-010
+      and A-011 live tests call it, so they no longer depend on another test
+      having run first. (2) The A-011 live test asserts real outcomes: all
+      steps COMPLETED and persisted, hello.txt exactly "hello", a successful
+      write_file, a read_file returning "hello", first response from the real
+      provider. Doing so exposed that the test's ModelGatewayAdapter had no
+      concrete_tool_definitions, so the model had no tool schemas and made no
+      tool call while steps were recorded completed with an empty workspace;
+      the test now passes the real tool definitions. (3)
+      test_registry_population_recovery accepts registry.provider.registered
+      or registry.provider.updated (register() emits the first, update() the
+      second, and the loader upserts); recovery checks unchanged; no audit
+      events added to CLI startup. (4) The run_command description names the
+      shell (cmd.exe on Windows, /bin/sh elsewhere), with 3 unit tests;
+      execution, workspace boundary and permission policy unchanged. (5)
+      Documentation reconciled with the verified acceptance run, tested
+      platform (Windows only), results and limitations. requirements.txt not
+      changed.
+    tests: >
+      On an empty database (0 tables verified before the run): 412 collected;
+      without GROQ_API_KEY 403 passed, 0 failed, 9 skipped (all GROQ_API_KEY);
+      with a key 412 passed, 0 skipped. Both live tests pass alone and in both
+      orders on an empty database. Pinned-pytest run (8.4.2) was done at
+      96237b1 (400 passed, 9 skipped), not repeated after these changes.
+    known_remaining: >
+      Three older live tests (B-008 test_live_first_agent_turn, B-009
+      test_full_live_agent_loop, B-011 test_full_live_agent_loop_dynamic_tools)
+      fail when run alone on an empty database; two of them with the same
+      "no candidate satisfies requirements" error, the third reports no tool
+      call and was not separately confirmed. They pass in suite order because
+      the CLI tests seed first. Not changed (outside the requested scope).
+    commit: "not committed at the time of writing; see git log"

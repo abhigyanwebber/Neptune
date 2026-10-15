@@ -27,6 +27,7 @@ from infrastructure.persistence.database import create_all_tables, make_engine, 
 from infrastructure.persistence.repositories import SqlAlchemyPlanRepository
 
 from core.planning.planner import GoalPlanner
+from _registry_seed import seed_canonical_registry
 from neptune.application.gateway_service import ModelGatewayService
 from neptune.infrastructure.gateway.model_gateway_adapter import ModelGatewayAdapter
 from neptune.infrastructure.models.canonical_registry_adapter import (
@@ -79,6 +80,7 @@ def test_real_goal_becomes_a_real_persisted_plan_via_real_groq() -> None:
     engine = make_engine(get_database_url())
     create_all_tables(engine)
     sf = make_session_factory(engine)
+    seed_canonical_registry(sf)  # independent of any other test having run first
 
     cap_reg = CapabilityRegistry(SqlAlchemyCapabilityRepository(sf))
     prov_reg = ProviderRegistry(SqlAlchemyProviderRepository(sf))

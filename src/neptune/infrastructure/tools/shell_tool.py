@@ -22,6 +22,7 @@ timing the command; that is different from the tool itself failing.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 
 from neptune.core.contracts.model_gateway import ToolDefinition
@@ -33,6 +34,16 @@ from neptune.core.contracts.tool_execution import ToolInputError
 # which a thread-pool cancellation alone would not do for a blocking
 # subprocess.run() call.
 _DEFAULT_TIMEOUT_SECONDS = 8.0
+
+
+def _shell_label(os_name: str) -> str:
+    """Names the shell subprocess.run(shell=True) actually uses, for the
+    model-visible description. Without this the model has no way to know and
+    tends to assume a POSIX shell (e.g. `sh -c ...`), which does not exist on
+    Windows. Description text only: execution semantics are unchanged."""
+    if os_name == "nt":
+        return "Windows cmd.exe (POSIX commands such as sh, ls, cat and grep may be unavailable)"
+    return "the POSIX shell /bin/sh"
 _MAX_OUTPUT_CHARS = 20_000
 
 
@@ -58,7 +69,8 @@ class RunCommandTool:
             name=self.name,
             description=(
                 "Run a shell command with its working directory fixed to the "
-                "workspace root. Returns exit_code, stdout, and stderr."
+                f"workspace root, executed by {_shell_label(os.name)}; write "
+                "commands for that shell. Returns exit_code, stdout, and stderr."
             ),
             parameters_schema={
                 "type": "object",
