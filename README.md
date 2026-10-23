@@ -114,6 +114,8 @@ Two things to know before pointing it at a real directory: file tools are confin
 
 **Verified live run (2026-10-11, commit `96237b1`, real Groq `openai/gpt-oss-120b`):** the goal `Create a file named hello.txt containing hello, then read it and verify its contents.` produced a valid 2-step plan that was persisted and ended `completed`; the real tools ran (`write_file` wrote 5 bytes, `list_directory`, `read_file` returned `hello`); the file on disk was exactly `b'hello'`; and the CLI reported `all steps completed with no tool errors` with exit 0. Verified from the persisted records and the file, not from the CLI summary. A second real-model run asked for a failing command: the model sent `sh -c 'exit 3'`, which genuinely failed on Windows with exit code 1; the step was recorded `failed`, its dependent `skipped`, and the CLI reported `not all steps completed` with exit 1. This is one goal on one model, not a reliability measurement.
 
+**Reproduced live run (2026-10-23, commit `596a910`, real Groq `openai/gpt-oss-120b`):** the same `hello.txt` goal was run again in a fresh workspace and checked from the persisted records and the file. This time the planner produced 4 steps (not 2), all `completed`; the file on disk was exactly `b'hello'`; the CLI exited 0. A failing-command goal (`exit 3`) failed its step at exit code 3, skipped its dependent and exited 1. Full suite with a key: 412 passed, 0 skipped. Record: `docs/ACCEPTANCE_RUN_2026-10-23.md`. This is separate from the 2026-10-11 run above, which remains a summary that was not stored. Still one provider, two goals, Windows only.
+
 ## Free / Cheap-First Philosophy
 
 Neptune's economic objective is to build the strongest practical agent infrastructure from free and low-cost resources, while keeping a working baseline that costs nothing to run.
@@ -132,6 +134,7 @@ Temporary credits or promotional access (cloud trial credits, limited-time API k
 - `14_DEVELOPMENT_ORCHESTRATION/` — the two-agent (Claude A / Claude B) development methodology used to build Neptune itself.
 - `src/` — implementation: `core/` (domain, contracts, runtime, registry, resolution, planning), `neptune/` (Model Gateway, providers, tools, permission and approval, observation loop), `infrastructure/` (persistence).
 - `scripts/` - repository verification and live-provider probe scripts. The product entry point is `python -m neptune` (`src/neptune/cli.py`).
+- `docs/` - `BUILD_METHODOLOGY.md` and dated acceptance-run records (latest: `ACCEPTANCE_RUN_2026-10-23.md`).
 - `DIRECTOR_REVIEW_*.md` - read-only audits of the integrated system; the latest, `DIRECTOR_REVIEW_009.md`, is the MVP closure report (it follows the final audit `DIRECTOR_REVIEW_008.md`).
 - `tests/` — unit, contract, and integration tests, including live-provider and live-Postgres suites (skip automatically without credentials).
 - `DEVELOPMENT_STATE/` — machine-readable task assignments, dependencies, and decisions tracking parallel development.

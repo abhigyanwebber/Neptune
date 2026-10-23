@@ -1506,3 +1506,36 @@ assignments:
       call and was not separately confirmed. They pass in suite order because
       the CLI tests seed first. Not changed (outside the requested scope).
     commit: "not committed at the time of writing; see git log"
+
+  - task_id: NEPTUNE-T4B-ACCEPTANCE-EVIDENCE
+    worker_id: A
+    title: "Record reproduced real-model acceptance evidence in the repository"
+    status: complete
+    authorized_by: user
+    depends_on: [NEPTUNE-RELEASE-CLEANUP]
+    deliverable: "docs/ACCEPTANCE_RUN_2026-10-23.md (new), README.md (one paragraph and one guide line), this entry"
+    result: PASS
+    scope: >
+      Run date 2026-10-23 (machine clock), base commit 596a910, real Groq API
+      (openai/gpt-oss-120b, confirmed from the stored model responses), fresh
+      empty temporary workspaces, Windows. Run 1: the hello.txt goal; the
+      planner produced 4 steps, all stored as completed; the file on disk was
+      exactly b'hello' (5 bytes); 12 stored turns, all provider groq; CLI exit
+      0. Run 2: a goal to run `exit 3`; the run_command observation was status
+      error with exit_code 3, the step failed, its dependent was skipped, CLI
+      exit 1. Verified from the persisted plan and turn records and the file,
+      not from the CLI summary. Evidence is stored in the repository, unlike
+      NEPTUNE-T4-LIVE-ACCEPTANCE.
+    tests: >
+      Same commit, Postgres up (neptune-postgres, port 5433): without a key
+      403 passed, 0 failed, 9 skipped (all GROQ_API_KEY); with a key 412
+      passed, 0 failed, 0 skipped. pytest 8.4.2, Python 3.14.5. A first
+      attempt with the database down (359 passed, 53 skipped) was discarded as
+      an invalid baseline.
+    note: >
+      This entry does not replace NEPTUNE-T4-LIVE-ACCEPTANCE; that run
+      (2026-10-11, 96237b1) is still a summary only. One provider, two goals,
+      Windows only; not a reliability measurement. The planner is not
+      deterministic (4 steps this run, 2 in the earlier one). The API key was
+      supplied as a process environment variable only and appears in no file.
+    commit: "not committed at the time of writing; see git log"
